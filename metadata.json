@@ -1,0 +1,6 @@
+{
+  "name": "Sổ Quản Lý Lao Động - DH Textile HRMS",
+  "description": "Hệ thống số hóa sổ quản lý lao động và quản trị nhân sự cho Công ty TNHH DH Textile theo chuẩn mẫu Bộ Lao động - Thương binh và Xã hội.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
