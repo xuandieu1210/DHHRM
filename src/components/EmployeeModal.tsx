@@ -9,6 +9,7 @@ interface EmployeeModalProps {
   onSave: (employee: Employee) => void;
   initialData?: Employee | null;
   existingCount: number;
+  canViewSalary?: boolean;
 }
 
 export const EmployeeModal: React.FC<EmployeeModalProps> = ({
@@ -16,7 +17,8 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   onClose,
   onSave,
   initialData,
-  existingCount
+  existingCount,
+  canViewSalary = true
 }) => {
   const [activeTab, setActiveTab] = useState<'personal' | 'idcard' | 'job' | 'contract' | 'resignation'>('personal');
 
@@ -624,13 +626,19 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 <label className="block font-semibold text-slate-700 mb-1">
                   Phụ cấp nhà ở (House Subsidy)
                 </label>
-                <input
-                  type="text"
-                  value={formData.houseSubsidy}
-                  onChange={(e) => handleChange('houseSubsidy', e.target.value)}
-                  placeholder="VD: 5,000,000 VND"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none"
-                />
+                {canViewSalary ? (
+                  <input
+                    type="text"
+                    value={formData.houseSubsidy}
+                    onChange={(e) => handleChange('houseSubsidy', e.target.value)}
+                    placeholder="VD: 5,000,000 VND"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none"
+                  />
+                ) : (
+                  <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-400 italic font-mono text-xs select-none">
+                    *** (Bảo mật - Không có quyền xem)
+                  </div>
+                )}
               </div>
             </div>
           )}

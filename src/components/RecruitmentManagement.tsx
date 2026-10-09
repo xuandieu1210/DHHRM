@@ -43,6 +43,7 @@ interface RecruitmentManagementProps {
   canManageRecruitment?: boolean;
   canOnboardCandidate?: boolean;
   canExportImport?: boolean;
+  canViewSalary?: boolean;
 }
 
 export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
@@ -53,7 +54,8 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
   onConvertToEmployee,
   canManageRecruitment = true,
   canOnboardCandidate = true,
-  canExportImport = true
+  canExportImport = true,
+  canViewSalary = true
 }) => {
   // Sub-tabs: 'schedule' (Lịch PV hàng ngày) or 'monthly_stats' (Thống kê theo tháng)
   const [activeSubTab, setActiveSubTab] = useState<'schedule' | 'monthly_stats'>('schedule');
@@ -1611,13 +1613,19 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
                   <label className="block font-semibold text-slate-700 mb-1">
                     Mức lương kỳ vọng
                   </label>
-                  <input
-                    type="text"
-                    value={formData.expectedSalary}
-                    onChange={(e) => setFormData(prev => ({ ...prev, expectedSalary: e.target.value }))}
-                    placeholder="VD: 8,500,000 VND"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none font-mono"
-                  />
+                  {canViewSalary ? (
+                    <input
+                      type="text"
+                      value={formData.expectedSalary}
+                      onChange={(e) => setFormData(prev => ({ ...prev, expectedSalary: e.target.value }))}
+                      placeholder="VD: 8,500,000 VND"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none font-mono"
+                    />
+                  ) : (
+                    <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-400 italic text-xs select-none">
+                      🔒 Bảo mật (Recruiter không xem được lương)
+                    </div>
+                  )}
                 </div>
 
                 {/* Kết quả phỏng vấn */}

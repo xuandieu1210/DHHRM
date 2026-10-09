@@ -586,6 +586,7 @@ export default function App() {
               canManageRecruitment={canManageRecruitment}
               canOnboardCandidate={canOnboardCandidate}
               canExportImport={canExportImport}
+              canViewSalary={canViewSalary}
             />
           )}
 
@@ -626,6 +627,7 @@ export default function App() {
           onSave={handleSaveEmployee}
           initialData={editingEmployee}
           existingCount={employees.length}
+          canViewSalary={canViewSalary}
         />
 
         {/* Detail / Profile Drawer */}
