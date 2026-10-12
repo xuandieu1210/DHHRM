@@ -7,6 +7,15 @@ export function parseDateString(dateStr?: string): Date | null {
   if (!dateStr || dateStr.trim() === '') return null;
   const trimmed = dateStr.trim();
 
+  // Recover Excel serial dates that may already have been stored as strings.
+  if (/^\d{5,7}$/.test(trimmed)) {
+    const serial = Number(trimmed);
+    if (serial <= 2958465) {
+      const date = new Date(1899, 11, 30 + serial);
+      return isNaN(date.getTime()) ? null : date;
+    }
+  }
+
   // If format is YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     const d = new Date(trimmed);
