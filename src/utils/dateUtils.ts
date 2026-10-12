@@ -41,6 +41,19 @@ export function parseDateString(dateStr?: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+export function formatDateInputValue(dateStr?: string): string {
+  if (!dateStr || dateStr.trim() === '') return '';
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const parsed = parseDateString(trimmed);
+  if (!parsed) return '';
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function formatDateDisplay(dateStr?: string): string {
   if (!dateStr || dateStr.trim() === '') return '-';
   const parsed = parseDateString(dateStr);

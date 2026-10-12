@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, FileText, Briefcase, Calendar, FileQuestion, Check } from 'lucide-react';
 import { Employee, Gender } from '../types/employee';
-import { calculateMonthsOfService } from '../utils/dateUtils';
+import { calculateMonthsOfService, formatDateInputValue } from '../utils/dateUtils';
 import { createEmployeeId } from '../utils/employeeIds';
 
 interface EmployeeModalProps {
@@ -61,7 +61,16 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
   useEffect(() => {
     if (initialData) {
-      setFormData({ ...initialData });
+      setFormData({
+        ...initialData,
+        dateOfBirth: formatDateInputValue(initialData.dateOfBirth),
+        idIssueDate: formatDateInputValue(initialData.idIssueDate),
+        contract1StartDate: formatDateInputValue(initialData.contract1StartDate),
+        contract1EndDate: formatDateInputValue(initialData.contract1EndDate),
+        contract2EndDate: formatDateInputValue(initialData.contract2EndDate),
+        joiningDate: formatDateInputValue(initialData.joiningDate),
+        resignationDate: formatDateInputValue(initialData.resignationDate)
+      });
     } else {
       setFormData({
         fullName: '',
@@ -107,6 +116,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       joiningDate: dateVal,
       timeOfService: months
     }));
+  };
+
+  const handleResignationDateChange = (dateVal: string) => {
+    const months = calculateMonthsOfService(formData.joiningDate, dateVal);
+    setFormData(prev => ({ ...prev, resignationDate: dateVal, timeOfService: months }));
   };
 
   const handleChange = (field: keyof Employee, value: any) => {
@@ -665,14 +679,20 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 <input
                   type="date"
                   value={formData.resignationDate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const months = calculateMonthsOfService(formData.joiningDate, val);
-                    setFormData(prev => ({ ...prev, resignationDate: val, timeOfService: months }));
-                  }}
+                  onChange={(e) => handleResignationDateChange(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none"
                 />
-                <span className="text-[10px] text-slate-400">Để trống nếu nhân viên đang làm việc</span>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-slate-400">Để trống nếu nhân viên đang làm việc</span>
+                  <button
+                    type="button"
+                    onClick={() => handleResignationDateChange('')}
+                    disabled={!formData.resignationDate}
+                    className="text-[10px] font-semibold text-slate-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Xóa ngày nghỉ việc
+                  </button>
+                </div>
               </div>
 
               <div>
