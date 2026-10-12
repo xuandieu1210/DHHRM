@@ -743,7 +743,7 @@ export default function App() {
               © 2026 <strong>Công ty TNHH DH Textile</strong>. Hệ thống Sổ Quản Lý Lao Động Doanh Nghiệp.
             </div>
             <div className="text-[11px] text-slate-400">
-              KCN Tam Thăng, TP Tam Kỳ, Tỉnh Quảng Nam · Phòng Nhân sự &amp; Hành chính
+              KCN Tam Thăng, phường Bàn Thạch, TP Đà Nẵng · Phòng Nhân sự &amp; Hành chính
             </div>
           </div>
         </footer>

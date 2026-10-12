@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               DH Textile HRMS
             </h1>
             <p className="text-[11px] text-slate-400 font-medium">
-              KCN Tam Thăng, Q.Nam
+              KCN Tam Thăng, Đà Nẵng
             </p>
           </div>
         </div>

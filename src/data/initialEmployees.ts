@@ -341,7 +341,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     nationality: 'Việt Nam',
     ethnicity: 'Kinh',
     nativePlace: 'Tam Kỳ, Quảng Nam',
-    permanentAddress: 'Xã Tam Thăng, TP Tam Kỳ, Quảng Nam',
+    permanentAddress: 'Phường Bàn Thạch, TP Đà Nẵng',
     phoneNumber: '0918889900',
     idCardNumber: '049198004512',
     oldIdCardNumber: '',
@@ -402,7 +402,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
 export const COMPANY_INFO = {
   name: 'CÔNG TY TNHH DH TEXTILE',
   nameEn: 'DH TEXTILE CO., LTD.',
-  address: 'Lô D4, KCN Tam Thăng, xã Tam Thăng, TP Tam Kỳ, Quảng Nam',
+  address: 'Lô D4, KCN Tam Thăng, phường Bàn Thạch, TP Đà Nẵng',
   title: 'SỔ QUẢN LÝ LAO ĐỘNG / LABOR MANAGEMENT BOOK',
   taxId: '4001189922',
   phone: '0235 3855 888',

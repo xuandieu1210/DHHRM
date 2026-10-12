@@ -400,7 +400,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   type="text"
                   value={formData.permanentAddress}
                   onChange={(e) => handleChange('permanentAddress', e.target.value)}
-                  placeholder="VD: Lô D4, KCN Tam Thăng / Xã Tam Thăng, TP Tam Kỳ, Quảng Nam"
+                  placeholder="VD: Lô D4, KCN Tam Thăng, phường Bàn Thạch, TP Đà Nẵng"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none"
                 />
               </div>
