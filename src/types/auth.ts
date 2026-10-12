@@ -16,7 +16,6 @@ export interface UserPermission {
 export interface UserAccount {
   id: string;
   username: string;
-  passwordHash: string; // Plain/hashed for client session
   fullName: string;
   email: string;
   role: UserRole;

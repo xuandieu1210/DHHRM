@@ -20,8 +20,10 @@ export interface EmployeeSalary {
   abilityAllowance: number;       // Trợ cấp đánh giá năng lực (Ability allowance)
   houseSubsidy: number;           // Trợ cấp nhà ở (House Subsidy)
   transportationSubsidy: number;  // Trợ cấp về nước thăm thân (Transportation fee Subsidy)
-  livingExpenseSubsidy: number;   // Trợ cấp xa nhà (Living expense Subsidy)
+  livingExpenseSubsidy: number;   // Trợ cấp sinh hoạt phí (Living expense subsidy)
   mealAllowance: number;          // Hỗ trợ tiền ăn (Meal allowance)
+  firePreventionSubsidy?: number; // Phụ cấp đội PCCC
+  oshTeamSubsidy?: number;       // Phụ cấp ATVSV
 
   // Calculated totals
   totalAllowance: number; // Tổng phụ cấp & trợ cấp
@@ -43,4 +45,6 @@ export type AllowanceFieldKey =
   | 'houseSubsidy'
   | 'transportationSubsidy'
   | 'livingExpenseSubsidy'
-  | 'mealAllowance';
+  | 'mealAllowance'
+  | 'firePreventionSubsidy'
+  | 'oshTeamSubsidy';

@@ -1,14 +1,16 @@
-import React, { useState, useMemo } from 'react';
-import { DollarSign, Plus, Search, Filter, Download, Edit3, Trash2, Printer, Eye, Calculator, ArrowUpRight, Building2, Check, X } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { DollarSign, Plus, Search, Filter, Download, Upload, FileSpreadsheet, Edit3, Trash2, Printer, Eye, Calculator, ArrowUpRight, Building2, Check, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { EmployeeSalary } from '../types/salary';
 import { Employee } from '../types/employee';
 import { COMPANY_INFO } from '../data/initialEmployees';
+import { downloadSalaryImportTemplate, importSalariesFromExcel } from '../utils/excel';
 
 interface SalaryManagementProps {
   salaries: EmployeeSalary[];
   employees: Employee[];
   onSaveSalary: (salary: EmployeeSalary) => void;
+  onImportSalaries: (salaries: EmployeeSalary[]) => void;
   onDeleteSalary: (id: string) => void;
   canEditSalary: boolean;
   canExportExcel: boolean;
@@ -18,6 +20,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
   salaries,
   employees,
   onSaveSalary,
+  onImportSalaries,
   onDeleteSalary,
   canEditSalary,
   canExportExcel
@@ -30,6 +33,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSalary, setEditingSalary] = useState<EmployeeSalary | null>(null);
   const [payslipSalary, setPayslipSalary] = useState<EmployeeSalary | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<EmployeeSalary>>({
@@ -49,8 +53,10 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
     abilityAllowance: 0,
     houseSubsidy: 0,
     transportationSubsidy: 0,
-    livingExpenseSubsidy: 0,
-    mealAllowance: 800000,
+    livingExpenseSubsidy: 35000,
+    mealAllowance: 40000,
+    firePreventionSubsidy: 0,
+    oshTeamSubsidy: 0,
     effectiveDate: '2026-01-01',
     notes: ''
   });
@@ -82,6 +88,12 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
   const totalVndPayroll = salaries.filter(s => s.currency === 'VND').reduce((sum, s) => sum + s.totalSalary, 0);
   const totalUsdAllowances = salaries.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.totalAllowance, 0);
   const totalVndAllowances = salaries.filter(s => s.currency === 'VND').reduce((sum, s) => sum + s.totalAllowance, 0);
+  const highestExpertSalary = salaries
+    .filter(salary => salary.currency === 'USD')
+    .reduce<EmployeeSalary | null>(
+      (highest, salary) => !highest || salary.totalSalary > highest.totalSalary ? salary : highest,
+      null
+    );
 
   // Currency Formatter
   const formatSalaryNumber = (num: number, currency: 'USD' | 'VND') => {
@@ -102,7 +114,9 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
     Number(formData.houseSubsidy || 0) +
     Number(formData.transportationSubsidy || 0) +
     Number(formData.livingExpenseSubsidy || 0) +
-    Number(formData.mealAllowance || 0)
+    Number(formData.mealAllowance || 0) +
+    Number(formData.firePreventionSubsidy || 0) +
+    Number(formData.oshTeamSubsidy || 0)
   );
 
   const liveTotalSalary = Number(formData.basicSalary || 0) + liveTotalAllowance;
@@ -127,8 +141,10 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
       abilityAllowance: 0,
       houseSubsidy: 0,
       transportationSubsidy: 0,
-      livingExpenseSubsidy: 0,
-      mealAllowance: 800000,
+      livingExpenseSubsidy: 35000,
+      mealAllowance: 40000,
+      firePreventionSubsidy: 0,
+      oshTeamSubsidy: 0,
       effectiveDate: '2026-01-01',
       notes: ''
     });
@@ -137,7 +153,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
 
   const handleOpenEdit = (salary: EmployeeSalary) => {
     setEditingSalary(salary);
-    setFormData({ ...salary });
+    setFormData({ firePreventionSubsidy: 0, oshTeamSubsidy: 0, ...salary });
     setIsModalOpen(true);
   };
 
@@ -178,6 +194,8 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
       transportationSubsidy: Number(formData.transportationSubsidy || 0),
       livingExpenseSubsidy: Number(formData.livingExpenseSubsidy || 0),
       mealAllowance: Number(formData.mealAllowance || 0),
+      firePreventionSubsidy: Number(formData.firePreventionSubsidy || 0),
+      oshTeamSubsidy: Number(formData.oshTeamSubsidy || 0),
       totalAllowance: liveTotalAllowance,
       totalSalary: liveTotalSalary,
       effectiveDate: formData.effectiveDate || '2026-01-01',
@@ -186,6 +204,25 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
 
     onSaveSalary(salaryToSave);
     setIsModalOpen(false);
+  };
+
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const imported = await importSalariesFromExcel(file, employees);
+      if (imported.length === 0) {
+        alert('Không tìm thấy dòng dữ liệu lương hợp lệ trong file.');
+        return;
+      }
+      onImportSalaries(imported);
+      alert(`Đã nhập ${imported.length} biểu lương.`);
+    } catch (error) {
+      console.error('Failed to import salary workbook', error);
+      alert(error instanceof Error ? error.message : 'Không thể đọc file lương.');
+    } finally {
+      event.target.value = '';
+    }
   };
 
   // Export to Excel with exact columns
@@ -205,7 +242,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
         'Total salary\nTổng lương',
         'Basic Salary\nLương cơ bản',
         'Allowance & Subsidy / Các khoản phụ cấp, trợ cấp',
-        '', '', '', '', '', '', '', '', '', '', ''
+        '', '', '', '', '', '', '', '', '', '', '', '', ''
       ],
       // Row 5: Sub Headers
       [
@@ -220,8 +257,10 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
         'Ability allowance\nTrợ cấp đánh giá năng lực',
         'House Subsidy\nTrợ cấp nhà ở',
         'Transportation fee Subsidy\nTrợ cấp về nước thăm thân',
-        'Living expense Subsidy\nTrợ cấp xa nhà',
-        'Meal allowance\nHỗ trợ tiền ăn'
+        'Living expense Subsidy 35.000 VND/day\nTrợ cấp sinh hoạt phí',
+        'Meal allowance 40.000 VND/day\nHỗ trợ tiền ăn',
+        'Fire Prevention Team Subsidy\nPhụ cấp đội PCCC',
+        'OSH Team Subsidy\nPhụ cấp ATVSV'
       ]
     ];
 
@@ -245,12 +284,14 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
       s.houseSubsidy,
       s.transportationSubsidy,
       s.livingExpenseSubsidy,
-      s.mealAllowance
+      s.mealAllowance,
+      s.firePreventionSubsidy || 0,
+      s.oshTeamSubsidy || 0
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
     ws['!merges'] = [
-      { s: { r: 3, c: 8 }, e: { r: 3, c: 19 } } // Merge "Allowance & Subsidy"
+      { s: { r: 3, c: 8 }, e: { r: 3, c: 21 } } // Merge "Allowance & Subsidy"
     ];
 
     const wb = XLSX.utils.book_new();
@@ -260,6 +301,16 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
 
   return (
     <div className="space-y-6">
+      {canEditSalary && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={handleImportExcel}
+          accept=".xlsx,.xls,.csv"
+          className="hidden"
+        />
+      )}
+
       {/* KPI Stats Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* KPI 1: Total Payroll VND */}
@@ -311,10 +362,14 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
             <ArrowUpRight className="w-4 h-4 text-amber-600" />
           </div>
           <div className="mt-2 text-xl sm:text-2xl font-bold font-mono text-slate-900 tabular-nums">
-            $12,000 / tháng
+            {highestExpertSalary
+              ? `$${highestExpertSalary.totalSalary.toLocaleString('en-US')} / tháng`
+              : 'Chưa có dữ liệu'}
           </div>
           <div className="mt-1 text-[11px] text-slate-500">
-            Deokyun Han (General Director)
+            {highestExpertSalary
+              ? `${highestExpertSalary.fullName} (${highestExpertSalary.position})`
+              : 'Chưa có biểu lương USD trong database'}
           </div>
         </div>
       </div>
@@ -377,6 +432,26 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
               <span>Xuất Bảng Lương Excel</span>
             </button>
           )}
+
+          {canEditSalary && (
+            <>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3.5 py-2 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Nhập Excel</span>
+              </button>
+              <button
+                onClick={downloadSalaryImportTemplate}
+                title="Tải Mau_Import_Bang_Luong.xlsx"
+                className="flex items-center gap-1.5 px-3.5 py-2 font-semibold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Mẫu import lương</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -413,8 +488,8 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
                   <div className="font-normal italic text-[11px] text-slate-700">Lương cơ bản</div>
                 </th>
 
-                {/* Allowance & Subsidy Group Header (Spanning all 12 sub columns) */}
-                <th colSpan={12} className="p-2 border border-slate-300 whitespace-nowrap bg-slate-300 text-center">
+                {/* Allowance & Subsidy Group Header (Spanning all 14 sub columns) */}
+                <th colSpan={14} className="p-2 border border-slate-300 whitespace-nowrap bg-slate-300 text-center">
                   <div className="font-bold text-[13px] tracking-wide text-slate-900">Allowance &amp; Subsidy</div>
                   <div className="font-normal italic text-[11px] text-slate-700">Các khoản phụ cấp, trợ cấp</div>
                 </th>
@@ -489,13 +564,25 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
                 {/* 11. Living expense Subsidy */}
                 <th className="p-2 border border-slate-300 min-w-[100px] leading-tight">
                   <div>Living expense Subsidy</div>
-                  <div className="font-normal italic text-[10px] text-slate-600">Trợ cấp xa nhà</div>
+                  <div className="font-normal italic text-[10px] text-slate-600">Trợ cấp sinh hoạt phí</div>
+                  <div className="font-normal italic text-[10px] text-slate-600">35.000 VND/ngày</div>
                 </th>
 
                 {/* 12. Meal allowance */}
                 <th className="p-2 border border-slate-300 min-w-[95px] leading-tight">
                   <div>Meal allowance</div>
                   <div className="font-normal italic text-[10px] text-slate-600">Hỗ trợ tiền ăn</div>
+                  <div className="font-normal italic text-[10px] text-slate-600">40.000 VND/ngày</div>
+                </th>
+
+                <th className="p-2 border border-slate-300 min-w-[115px] leading-tight">
+                  <div>Fire Prevention Team Subsidy</div>
+                  <div className="font-normal italic text-[10px] text-slate-600">Phụ cấp đội PCCC</div>
+                </th>
+
+                <th className="p-2 border border-slate-300 min-w-[105px] leading-tight">
+                  <div>OSH Team Subsidy</div>
+                  <div className="font-normal italic text-[10px] text-slate-600">Phụ cấp ATVSV</div>
                 </th>
               </tr>
             </thead>
@@ -503,7 +590,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredSalaries.length === 0 ? (
                 <tr>
-                  <td colSpan={19} className="py-12 text-center text-slate-500">
+                  <td colSpan={21} className="py-12 text-center text-slate-500">
                     Không tìm thấy dữ liệu lương phù hợp.
                   </td>
                 </tr>
@@ -605,6 +692,14 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
                       {formatSalaryNumber(sal.mealAllowance, sal.currency)}
                     </td>
 
+                    <td className="p-2 text-right font-mono text-slate-700 border border-slate-300 tabular-nums whitespace-nowrap">
+                      {formatSalaryNumber(sal.firePreventionSubsidy || 0, sal.currency)}
+                    </td>
+
+                    <td className="p-2 text-right font-mono text-slate-700 border border-slate-300 tabular-nums whitespace-nowrap">
+                      {formatSalaryNumber(sal.oshTeamSubsidy || 0, sal.currency)}
+                    </td>
+
                     {/* Actions */}
                     <td className="p-2 text-center border border-slate-300 sticky right-0 bg-white z-10 whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
@@ -661,7 +756,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
                   {editingSalary ? 'Điều Chỉnh Định Mức Lương & Phụ Cấp' : 'Thiết Lập Biểu Lương Nhân Viên Mới'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Tự động tổng hợp Tổng lương = Lương cơ bản + 12 khoản phụ cấp &amp; trợ cấp.
+                  Tự động tổng hợp Tổng lương = Lương cơ bản + 14 khoản phụ cấp &amp; trợ cấp.
                 </p>
               </div>
               <button
@@ -737,7 +832,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
                 </div>
               </div>
 
-              {/* 12 Allowance & Subsidy Inputs Grid */}
+              {/* Allowance & Subsidy Inputs Grid */}
               <div>
                 <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-2 flex items-center justify-between">
                   <span>Các Khoản Phụ Cấp &amp; Trợ Cấp (Allowance &amp; Subsidy)</span>
@@ -869,7 +964,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
 
                   <div>
                     <label className="block text-slate-600 font-medium mb-1 truncate" title="Living expense Subsidy">
-                      Trợ cấp xa nhà (Living expense)
+                      Trợ cấp sinh hoạt phí (35.000 VND/ngày)
                     </label>
                     <input
                       type="number"
@@ -881,12 +976,36 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
 
                   <div>
                     <label className="block text-slate-600 font-medium mb-1 truncate" title="Meal allowance">
-                      Hỗ trợ tiền ăn (Meal)
+                      Hỗ trợ tiền ăn (40.000 VND/ngày)
                     </label>
                     <input
                       type="number"
                       value={formData.mealAllowance}
                       onChange={(e) => setFormData(prev => ({ ...prev, mealAllowance: Number(e.target.value) }))}
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono text-right"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1 truncate" title="Fire Prevention Team Subsidy">
+                      Phụ cấp đội PCCC
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.firePreventionSubsidy ?? 0}
+                      onChange={(e) => setFormData(prev => ({ ...prev, firePreventionSubsidy: Number(e.target.value) }))}
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono text-right"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1 truncate" title="OSH Team Subsidy">
+                      Phụ cấp ATVSV
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.oshTeamSubsidy ?? 0}
+                      onChange={(e) => setFormData(prev => ({ ...prev, oshTeamSubsidy: Number(e.target.value) }))}
                       className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono text-right"
                     />
                   </div>
@@ -897,7 +1016,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
               <div className="p-4 bg-slate-900 text-white rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-slate-400 text-xs block">Total Salary (Tổng lương thực nhận)</span>
-                  <span className="text-[11px] text-slate-400">Lương cơ bản + 12 khoản phụ cấp</span>
+                  <span className="text-[11px] text-slate-400">Lương cơ bản + 14 khoản phụ cấp</span>
                 </div>
                 <div className="text-right">
                   <span className="font-mono font-bold text-2xl text-emerald-400 tabular-nums">
@@ -1031,14 +1150,26 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
                   )}
                   {payslipSalary.livingExpenseSubsidy > 0 && (
                     <tr>
-                      <td className="p-2 font-sans">Trợ cấp xa nhà (Living expense)</td>
+                      <td className="p-2 font-sans">Trợ cấp sinh hoạt phí (35.000 VND/ngày)</td>
                       <td className="p-2 text-right">{payslipSalary.livingExpenseSubsidy.toLocaleString('en-US')}</td>
                     </tr>
                   )}
                   {payslipSalary.mealAllowance > 0 && (
                     <tr>
-                      <td className="p-2 font-sans">Hỗ trợ tiền ăn (Meal)</td>
+                      <td className="p-2 font-sans">Hỗ trợ tiền ăn (40.000 VND/ngày)</td>
                       <td className="p-2 text-right">{payslipSalary.mealAllowance.toLocaleString('en-US')}</td>
+                    </tr>
+                  )}
+                  {(payslipSalary.firePreventionSubsidy || 0) > 0 && (
+                    <tr>
+                      <td className="p-2 font-sans">Phụ cấp đội PCCC</td>
+                      <td className="p-2 text-right">{payslipSalary.firePreventionSubsidy?.toLocaleString('en-US')}</td>
+                    </tr>
+                  )}
+                  {(payslipSalary.oshTeamSubsidy || 0) > 0 && (
+                    <tr>
+                      <td className="p-2 font-sans">Phụ cấp ATVSV</td>
+                      <td className="p-2 text-right">{payslipSalary.oshTeamSubsidy?.toLocaleString('en-US')}</td>
                     </tr>
                   )}
                 </tbody>

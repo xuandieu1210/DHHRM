@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, FileText, Briefcase, Calendar, FileQuestion, Check } from 'lucide-react';
 import { Employee, Gender } from '../types/employee';
 import { calculateMonthsOfService } from '../utils/dateUtils';
+import { createEmployeeId } from '../utils/employeeIds';
 
 interface EmployeeModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface EmployeeModalProps {
   onSave: (employee: Employee) => void;
   initialData?: Employee | null;
   existingCount: number;
+  existingEmployeeIds: string[];
   canViewSalary?: boolean;
 }
 
@@ -18,6 +20,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   onSave,
   initialData,
   existingCount,
+  existingEmployeeIds,
   canViewSalary = true
 }) => {
   const [activeTab, setActiveTab] = useState<'personal' | 'idcard' | 'job' | 'contract' | 'resignation'>('personal');
@@ -25,7 +28,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   const [formData, setFormData] = useState<Partial<Employee>>({
     fullName: '',
     gender: 'Male',
-    employeeId: `DH${1000 + existingCount + 1}`,
+    employeeId: createEmployeeId('DH', existingEmployeeIds),
     dateOfBirth: '',
     nationality: 'Việt Nam',
     ethnicity: 'Kinh',
@@ -63,7 +66,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setFormData({
         fullName: '',
         gender: 'Male',
-        employeeId: `DH${1000 + existingCount + 1}`,
+        employeeId: createEmployeeId('DH', existingEmployeeIds),
         dateOfBirth: '',
         nationality: 'Việt Nam',
         ethnicity: 'Kinh',
@@ -299,6 +302,15 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   }`}
                 />
                 {errors.employeeId && <p className="text-red-500 text-[11px] mt-0.5">{errors.employeeId}</p>}
+                {initialData && /^TV\d+$/i.test(initialData.employeeId) && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange('employeeId', createEmployeeId('DH', existingEmployeeIds))}
+                    className="mt-1.5 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+                  >
+                    Cấp mã chính thức {createEmployeeId('DH', existingEmployeeIds)}
+                  </button>
+                )}
               </div>
 
               <div>

@@ -1,10 +1,11 @@
 import React from 'react';
-import { Building2, MapPin, Download, Upload, Printer, RefreshCw, Eye } from 'lucide-react';
+import { Building2, MapPin, Download, Upload, Printer, RefreshCw, Eye, FileSpreadsheet } from 'lucide-react';
 import { COMPANY_INFO } from '../data/initialEmployees';
 
 interface CompanyBannerProps {
   onExportExcel: () => void;
   onImportClick: () => void;
+  onDownloadImportTemplate: () => void;
   onPrint: () => void;
   onResetData: () => void;
   totalCount: number;
@@ -13,11 +14,13 @@ interface CompanyBannerProps {
   themeStyle: 'excel' | 'modern';
   setThemeStyle: (style: 'excel' | 'modern') => void;
   canExportImport?: boolean;
+  showLaborImportExport: boolean;
 }
 
 export const CompanyBanner: React.FC<CompanyBannerProps> = ({
   onExportExcel,
   onImportClick,
+  onDownloadImportTemplate,
   onPrint,
   onResetData,
   totalCount,
@@ -25,7 +28,8 @@ export const CompanyBanner: React.FC<CompanyBannerProps> = ({
   expiredCount,
   themeStyle,
   setThemeStyle,
-  canExportImport = true
+  canExportImport = true,
+  showLaborImportExport
 }) => {
   return (
     <div className="bg-white border-b border-slate-200">
@@ -73,7 +77,7 @@ export const CompanyBanner: React.FC<CompanyBannerProps> = ({
               </button>
             </div>
 
-            {canExportImport && (
+            {canExportImport && showLaborImportExport && (
               <>
                 <button
                   onClick={onExportExcel}
@@ -89,6 +93,14 @@ export const CompanyBanner: React.FC<CompanyBannerProps> = ({
                 >
                   <Upload className="w-3.5 h-3.5" />
                   Nhập Excel
+                </button>
+
+                <button
+                  onClick={onDownloadImportTemplate}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  Mẫu import lao động
                 </button>
               </>
             )}

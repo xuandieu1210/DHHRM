@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Employee } from './types/employee';
-import { INITIAL_EMPLOYEES } from './data/initialEmployees';
 import { InterviewCandidate } from './types/recruitment';
-import { INITIAL_INTERVIEWS } from './data/initialRecruitment';
 import { EmployeeSalary } from './types/salary';
-import { INITIAL_SALARIES } from './data/initialSalaries';
 import { UserAccount, ROLE_DEFINITIONS } from './types/auth';
-import { INITIAL_USERS } from './data/initialUsers';
 import { Sidebar } from './components/Sidebar';
 import { Header, AppTab } from './components/Header';
 import { CompanyBanner } from './components/CompanyBanner';
@@ -21,79 +17,22 @@ import { EmployeeDetailDrawer } from './components/EmployeeDetailDrawer';
 import { DashboardAnalytics } from './components/DashboardAnalytics';
 import { ContractAlertsView } from './components/ContractAlertsModal';
 import { PrintLaborBook } from './components/PrintLaborBook';
-import { exportLaborBookToExcel, importLaborBookFromExcel } from './utils/excel';
+import { downloadLaborBookImportTemplate, exportLaborBookToExcel, importLaborBookFromExcel } from './utils/excel';
 import { getContractExpiryStatus } from './utils/dateUtils';
-
-const STORAGE_EMPLOYEES_KEY = 'dh_textile_labor_book_employees_v1';
-const STORAGE_CANDIDATES_KEY = 'dh_textile_interview_candidates_v1';
-const STORAGE_SALARIES_KEY = 'dh_textile_salaries_v1';
-const STORAGE_USERS_KEY = 'dh_textile_users_v1';
-const STORAGE_CURRENT_USER_KEY = 'dh_textile_current_user_v1';
+import { createEmployeeId } from './utils/employeeIds';
+import { getSession, loadAppData, login, logout, resetAppData, saveCollection, saveUsers } from './utils/dataApi';
 
 export default function App() {
   // Users & Auth State
-  const [users, setUsers] = useState<UserAccount[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_USERS_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Failed to parse users', e);
-    }
-    return INITIAL_USERS;
-  });
-
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Failed to parse current user', e);
-    }
-    return INITIAL_USERS[0]; // Default to admin for seamless first load
-  });
-
-  // Employees State
-  const [employees, setEmployees] = useState<Employee[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_EMPLOYEES_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Failed to parse stored employees', e);
-    }
-    return INITIAL_EMPLOYEES;
-  });
-
-  // Recruitment Candidates State
-  const [candidates, setCandidates] = useState<InterviewCandidate[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_CANDIDATES_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Failed to parse stored candidates', e);
-    }
-    return INITIAL_INTERVIEWS;
-  });
-
-  // Salaries State
-  const [salaries, setSalaries] = useState<EmployeeSalary[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_SALARIES_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Failed to parse stored salaries', e);
-    }
-    return INITIAL_SALARIES;
-  });
+  const [users, setUsers] = useState<UserAccount[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [candidates, setCandidates] = useState<InterviewCandidate[]>([]);
+  const [salaries, setSalaries] = useState<EmployeeSalary[]>([]);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isDataReady, setIsDataReady] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   const [activeTab, setActiveTab] = useState<AppTab>('table');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -106,50 +45,78 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Persistence
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_EMPLOYEES_KEY, JSON.stringify(employees));
-    } catch (e) {
-      console.error('Failed to save employees', e);
+      [
+        'dh_textile_labor_book_employees_v1',
+        'dh_textile_interview_candidates_v1',
+        'dh_textile_salaries_v1',
+        'dh_textile_users_v1',
+        'dh_textile_current_user_v1',
+      ].forEach((key) => localStorage.removeItem(key));
+    } catch (error) {
+      console.warn('Could not clear old browser data', error);
     }
-  }, [employees]);
+  }, []);
 
+  // Restore the server session before loading any HR data.
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_CANDIDATES_KEY, JSON.stringify(candidates));
-    } catch (e) {
-      console.error('Failed to save candidates', e);
-    }
-  }, [candidates]);
+    let cancelled = false;
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_SALARIES_KEY, JSON.stringify(salaries));
-    } catch (e) {
-      console.error('Failed to save salaries', e);
-    }
-  }, [salaries]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
-    } catch (e) {
-      console.error('Failed to save users', e);
-    }
-  }, [users]);
-
-  useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem(STORAGE_CURRENT_USER_KEY);
+    const restoreSession = async () => {
+      setDataError(null);
+      setIsAuthReady(false);
+      try {
+        const { user } = await getSession();
+        if (cancelled) return;
+        if (user) {
+          const data = await loadAppData();
+          if (cancelled) return;
+          setCurrentUser(user);
+          setEmployees(data.employees);
+          setCandidates(data.candidates);
+          setSalaries(data.salaries);
+          setUsers(data.users);
+          setIsDataReady(true);
+        }
+      } catch (error) {
+        console.error('Failed to restore the PostgreSQL session', error);
+        if (!cancelled) {
+          setDataError('Không thể kết nối máy chủ hoặc cơ sở dữ liệu. Hãy kiểm tra dịch vụ rồi thử lại.');
+        }
+      } finally {
+        if (!cancelled) setIsAuthReady(true);
       }
-    } catch (e) {
-      console.error('Failed to save current user', e);
-    }
-  }, [currentUser]);
+    };
+
+    void restoreSession();
+    return () => { cancelled = true; };
+  }, [loadAttempt]);
+
+  // Persist application collections in PostgreSQL.
+  useEffect(() => {
+    if (!isDataReady || !currentUser || !['admin', 'hr_manager'].includes(currentUser.role)) return;
+    void saveCollection('employees', employees).catch((error) => {
+      console.error('Failed to save employees', error);
+      setDataError('Không thể lưu dữ liệu nhân viên vào PostgreSQL.');
+    });
+  }, [employees, isDataReady, currentUser]);
+
+  useEffect(() => {
+    if (!isDataReady || !currentUser || !['admin', 'hr_manager', 'recruiter'].includes(currentUser.role)) return;
+    void saveCollection('candidates', candidates).catch((error) => {
+      console.error('Failed to save candidates', error);
+      setDataError('Không thể lưu dữ liệu ứng viên vào PostgreSQL.');
+    });
+  }, [candidates, isDataReady, currentUser]);
+
+  useEffect(() => {
+    if (!isDataReady || !currentUser || !['admin', 'hr_manager'].includes(currentUser.role)) return;
+    void saveCollection('salaries', salaries).catch((error) => {
+      console.error('Failed to save salaries', error);
+      setDataError('Không thể lưu dữ liệu lương vào PostgreSQL.');
+    });
+  }, [salaries, isDataReady, currentUser]);
 
   // Toast notification
   const showToast = (msg: string) => {
@@ -199,46 +166,76 @@ export default function App() {
   const todayInterviews = candidates.filter(c => c.interviewDate === '2026-10-09').length;
 
   // Auth Handlers
-  const handleLogin = (user: UserAccount) => {
-    const updated = {
-      ...user,
-      lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    };
-    setCurrentUser(updated);
-    setUsers(prev => prev.map(u => (u.id === user.id ? updated : u)));
-    showToast(`Xin chào, ${user.fullName} (${ROLE_DEFINITIONS[user.role].nameVi})`);
+  const handleLogin = async (username: string, password: string) => {
+    const { user } = await login(username, password);
+    try {
+      const data = await loadAppData();
+      setCurrentUser(user);
+      setEmployees(data.employees);
+      setCandidates(data.candidates);
+      setSalaries(data.salaries);
+      setUsers(data.users);
+      setIsDataReady(true);
+      setDataError(null);
+      showToast(`Xin chào, ${user.fullName} (${ROLE_DEFINITIONS[user.role].nameVi})`);
+    } catch (error) {
+      await logout();
+      throw error;
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Failed to end server session', error);
+      setDataError('Không thể kết thúc phiên đăng nhập. Hãy thử lại.');
+      return;
+    }
     setCurrentUser(null);
+    setEmployees([]);
+    setCandidates([]);
+    setSalaries([]);
+    setUsers([]);
+    setIsDataReady(false);
     showToast('Đã đăng xuất khỏi hệ thống');
   };
 
   // User Management Handlers
-  const handleSaveUser = (userToSave: UserAccount) => {
-    setUsers(prev => {
-      const exists = prev.some(u => u.id === userToSave.id);
-      if (exists) {
-        return prev.map(u => (u.id === userToSave.id ? userToSave : u));
-      } else {
-        return [userToSave, ...prev];
+  const handleSaveUser = (userToSave: UserAccount, password: string) => {
+    const exists = users.some(u => u.id === userToSave.id);
+    const nextUsers = exists
+      ? users.map(user => user.id === userToSave.id ? userToSave : user)
+      : [userToSave, ...users];
+    void saveUsers(nextUsers, userToSave.id, password).then(() => {
+      setUsers(nextUsers);
+      if (currentUser?.id === userToSave.id) {
+        setCurrentUser(userToSave);
       }
+    }).catch((error) => {
+      console.error('Failed to save users', error);
+      setDataError('Không thể lưu tài khoản vào PostgreSQL.');
     });
-    if (currentUser && currentUser.id === userToSave.id) {
-      setCurrentUser(userToSave);
-    }
     showToast(`Đã lưu tài khoản ${userToSave.fullName} (@${userToSave.username})`);
   };
 
   const handleDeleteUser = (userId: string) => {
-    setUsers(prev => prev.filter(u => u.id !== userId));
+    const nextUsers = users.filter(user => user.id !== userId);
+    void saveUsers(nextUsers).then(() => setUsers(nextUsers)).catch((error) => {
+      console.error('Failed to delete user', error);
+      setDataError('Không thể xóa tài khoản khỏi PostgreSQL.');
+    });
     showToast('Đã xóa tài khoản người dùng');
   };
 
   const handleToggleUserStatus = (userId: string) => {
-    setUsers(prev =>
-      prev.map(u => (u.id === userId ? { ...u, isActive: !u.isActive } : u))
-    );
+    const nextUsers = users.map(user => user.id === userId
+      ? { ...user, isActive: !user.isActive }
+      : user);
+    void saveUsers(nextUsers).then(() => setUsers(nextUsers)).catch((error) => {
+      console.error('Failed to update user status', error);
+      setDataError('Không thể cập nhật tài khoản trong PostgreSQL.');
+    });
     showToast('Đã thay đổi trạng thái kích hoạt tài khoản');
   };
 
@@ -273,6 +270,40 @@ export default function App() {
   const handleDeleteSalary = (salaryId: string) => {
     setSalaries(prev => prev.filter(s => s.id !== salaryId));
     showToast('Đã xóa biểu lương');
+  };
+
+  const handleImportSalaries = (importedSalaries: EmployeeSalary[]) => {
+    if (!canManageSalary) {
+      showToast('Bạn không có quyền nhập bảng lương.');
+      return;
+    }
+
+    setSalaries(prev => {
+      const next = [...prev];
+      importedSalaries.forEach(imported => {
+        const existingIndex = next.findIndex(salary =>
+          salary.employeeId === imported.employeeId && salary.effectiveDate === imported.effectiveDate
+        );
+        if (existingIndex >= 0) next[existingIndex] = imported;
+        else next.unshift(imported);
+      });
+      return next;
+    });
+
+    const housingByEmployee = new Map(
+      importedSalaries
+        .filter(salary => salary.houseSubsidy > 0)
+        .map(salary => [salary.employeeId, salary])
+    );
+    if (housingByEmployee.size > 0) {
+      setEmployees(prev => prev.map(employee => {
+        const salary = housingByEmployee.get(employee.employeeId);
+        return salary
+          ? { ...employee, houseSubsidy: `${salary.houseSubsidy.toLocaleString('en-US')} ${salary.currency}` }
+          : employee;
+      }));
+    }
+    showToast(`Đã nhập ${importedSalaries.length} biểu lương.`);
   };
 
   // Employee Handlers
@@ -310,6 +341,9 @@ export default function App() {
   };
 
   const handleSaveEmployee = (empToSave: Employee) => {
+    const previousEmployeeId = editingEmployee?.id === empToSave.id
+      ? editingEmployee.employeeId
+      : null;
     setEmployees(prev => {
       const exists = prev.some(e => e.id === empToSave.id);
       if (exists) {
@@ -319,6 +353,17 @@ export default function App() {
         return next.map((item, idx) => ({ ...item, stt: idx + 1 }));
       }
     });
+    if (previousEmployeeId && previousEmployeeId !== empToSave.employeeId) {
+      setSalaries(prev => prev.map(salary => salary.employeeId === previousEmployeeId
+        ? {
+          ...salary,
+          employeeId: empToSave.employeeId,
+          fullName: empToSave.fullName,
+          department: empToSave.department,
+          position: empToSave.position
+        }
+        : salary));
+    }
     setIsModalOpen(false);
     setEditingEmployee(null);
     showToast(editingEmployee ? `Đã cập nhật hồ sơ ${empToSave.fullName}` : `Đã thêm ${empToSave.fullName} vào sổ lao động`);
@@ -349,6 +394,10 @@ export default function App() {
     showToast('Đã xuất file Excel Sổ Quản Lý Lao Động thành công!');
   };
 
+  const handleDownloadLaborTemplate = () => {
+    downloadLaborBookImportTemplate();
+  };
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!canExportImport) {
       showToast('Bạn không có quyền nhập file Excel.');
@@ -358,7 +407,7 @@ export default function App() {
     if (!file) return;
 
     try {
-      const imported = await importLaborBookFromExcel(file);
+      const imported = await importLaborBookFromExcel(file, employees);
       if (imported.length > 0) {
         setEmployees(imported.map((item, idx) => ({ ...item, stt: idx + 1 })));
         showToast(`Đã nhập thành công ${imported.length} lao động từ file Excel!`);
@@ -373,16 +422,23 @@ export default function App() {
     }
   };
 
-  const handleResetData = () => {
+  const handleResetData = async () => {
     if (currentUser?.role !== 'admin') {
       showToast('Chỉ Quản trị viên (Admin) mới có quyền khôi phục dữ liệu gốc.');
       return;
     }
     if (window.confirm('Khôi phục danh sách lao động về dữ liệu mẫu gốc ban đầu của DH Textile?')) {
-      setEmployees(INITIAL_EMPLOYEES);
-      setCandidates(INITIAL_INTERVIEWS);
-      setSalaries(INITIAL_SALARIES);
-      showToast('Đã khôi phục dữ liệu mẫu ban đầu');
+      try {
+        await resetAppData();
+        const data = await loadAppData();
+        setEmployees(data.employees);
+        setCandidates(data.candidates);
+        setSalaries(data.salaries);
+        showToast('Đã khôi phục dữ liệu mẫu ban đầu');
+      } catch (error) {
+        console.error('Failed to reset PostgreSQL data', error);
+        setDataError('Không thể khôi phục dữ liệu trong PostgreSQL.');
+      }
     }
   };
 
@@ -417,7 +473,7 @@ export default function App() {
     }
 
     const nextStt = employees.length + 1;
-    const newEmpId = `DH${1000 + nextStt}`;
+    const newEmpId = createEmployeeId('DH', employees.map(employee => employee.employeeId));
     const onboardDate = candidate.onboardDate || '2026-10-15';
 
     const newEmp: Employee = {
@@ -462,9 +518,30 @@ export default function App() {
     );
   };
 
+  if (!isAuthReady || (currentUser && !isDataReady) || (dataError && !currentUser)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-6">
+        <div className="max-w-md text-center">
+          <h1 className="text-lg font-bold text-slate-900">DHHRM</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            {dataError || 'Đang kiểm tra phiên đăng nhập...'}
+          </p>
+          {dataError && (
+            <button
+              onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+              className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Thử kết nối lại
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // If user is not logged in, show Login Screen
   if (!currentUser) {
-    return <LoginScreen users={users} onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
   return (
@@ -477,6 +554,15 @@ export default function App() {
         accept=".xlsx,.xls,.csv"
         className="hidden"
       />
+
+      {dataError && (
+        <div className="fixed top-4 right-4 z-50 rounded-lg bg-rose-700 px-4 py-3 text-sm text-white shadow-lg">
+          {dataError}
+          <button onClick={() => setDataError(null)} className="ml-3 font-bold" aria-label="Đóng">
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Toast Notification */}
       {notification && (
@@ -512,6 +598,7 @@ export default function App() {
         <CompanyBanner
           onExportExcel={handleExportExcel}
           onImportClick={() => fileInputRef.current?.click()}
+          onDownloadImportTemplate={handleDownloadLaborTemplate}
           onPrint={() => setShowPrintModal(true)}
           onResetData={handleResetData}
           totalCount={employees.length}
@@ -520,6 +607,7 @@ export default function App() {
           themeStyle={themeStyle}
           setThemeStyle={setThemeStyle}
           canExportImport={canExportImport}
+          showLaborImportExport={activeTab === 'table'}
         />
 
         {/* Main Content Area */}
@@ -545,6 +633,7 @@ export default function App() {
                 salaries={salaries}
                 employees={employees}
                 onSaveSalary={handleSaveSalary}
+                onImportSalaries={handleImportSalaries}
                 onDeleteSalary={handleDeleteSalary}
                 canEditSalary={canManageSalary}
                 canExportExcel={canExportImport}
@@ -627,6 +716,7 @@ export default function App() {
           onSave={handleSaveEmployee}
           initialData={editingEmployee}
           existingCount={employees.length}
+          existingEmployeeIds={employees.map(employee => employee.employeeId)}
           canViewSalary={canViewSalary}
         />
 

@@ -27,6 +27,7 @@ import {
 import * as XLSX from 'xlsx';
 import { InterviewCandidate, InterviewStatus } from '../types/recruitment';
 import { formatDateDisplay } from '../utils/dateUtils';
+import { downloadInterviewImportTemplate } from '../utils/excel';
 import { 
   getMonthlyRecruitmentStats, 
   getRecruitmentBreakdownByDept, 
@@ -301,6 +302,10 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
   };
 
   // Export Daily Schedule to Excel
+  const handleDownloadImportTemplate = () => {
+    downloadInterviewImportTemplate();
+  };
+
   const handleExportExcelDaily = () => {
     const exportData = candidates.map((c, i) => [
       i + 1,
@@ -364,13 +369,34 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
 
         const newItems: InterviewCandidate[] = [];
         json.slice(headerRow + 1).forEach((r, idx) => {
-          if (!r || (!r[3] && !r[1])) return;
-          const name = String(r[3] || r[1] || '').trim();
+          if (!r || !r[3]) return;
+          const name = String(r[3]).trim();
           if (!name) return;
+
+          let interviewDate = String(r[1] || selectedDate || '2026-10-09');
+          if (typeof r[1] === 'number') {
+            const date = XLSX.SSF.parse_date_code(r[1]);
+            if (date) interviewDate = `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
+          } else {
+            const localDate = interviewDate.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/);
+            if (localDate) interviewDate = `${localDate[3]}-${localDate[2].padStart(2, '0')}-${localDate[1].padStart(2, '0')}`;
+          }
+
+          const statusText = String(r[10] || '').trim().toLowerCase();
+          const statusMap: Record<string, InterviewStatus> = {
+            'chờ phỏng vấn': 'scheduled',
+            'đã pv - chờ kết quả': 'interviewed',
+            'đã phỏng vấn': 'interviewed',
+            'trúng tuyển': 'passed',
+            'đã nhận việc': 'accepted',
+            'không đạt': 'failed',
+            'hủy hẹn': 'cancelled',
+            'vắng mặt': 'cancelled'
+          };
 
           newItems.push({
             id: `int-imp-${Date.now()}-${idx}`,
-            interviewDate: String(r[1] || selectedDate || '2026-10-09'),
+            interviewDate,
             interviewTime: String(r[2] || '09:00'),
             fullName: name,
             phoneNumber: String(r[4] || ''),
@@ -379,8 +405,9 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
             department: String(r[7] || 'Production'),
             interviewer: String(r[8] || 'Trưởng bộ phận'),
             location: String(r[9] || 'Nhà máy'),
-            status: 'scheduled',
+            status: statusMap[statusText] || 'scheduled',
             experienceYears: 1,
+            expectedSalary: String(r[11] || ''),
             notes: String(r[12] || '')
           });
         });
@@ -625,6 +652,14 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
                     >
                       <Upload className="w-3.5 h-3.5" />
                       Nhập Excel Hàng Loạt
+                    </button>
+
+                    <button
+                      onClick={handleDownloadImportTemplate}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      Mẫu import lịch phỏng vấn
                     </button>
 
                     <button

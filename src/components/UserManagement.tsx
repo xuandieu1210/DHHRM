@@ -5,7 +5,7 @@ import { UserAccount, UserRole, ROLE_DEFINITIONS } from '../types/auth';
 interface UserManagementProps {
   users: UserAccount[];
   currentUser: UserAccount;
-  onSaveUser: (user: UserAccount) => void;
+  onSaveUser: (user: UserAccount, password: string) => void;
   onDeleteUser: (userId: string) => void;
   onToggleUserStatus: (userId: string) => void;
 }
@@ -23,10 +23,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
 
   // Form state
-  const [formData, setFormData] = useState<Partial<UserAccount>>({
+  const [formData, setFormData] = useState<Partial<UserAccount> & { password?: string }>({
     fullName: '',
     username: '',
-    passwordHash: '',
+    password: '',
     email: '',
     role: 'hr_manager',
     department: 'HR & Admin',
@@ -53,7 +53,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     setFormData({
       fullName: '',
       username: '',
-      passwordHash: 'dhtextile123',
+      password: '',
       email: '',
       role: 'hr_manager',
       department: 'HR & Admin',
@@ -67,7 +67,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
   const handleOpenEdit = (user: UserAccount) => {
     setEditingUser(user);
-    setFormData({ ...user });
+    setFormData({ ...user, password: '' });
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -92,7 +92,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     const userToSave: UserAccount = {
       id: editingUser?.id || `user-${Date.now()}`,
       username: trimmedUser,
-      passwordHash: formData.passwordHash || 'dhtextile123',
       fullName: formData.fullName || '',
       email: formData.email || `${trimmedUser}@dhtextile.vn`,
       role: (formData.role as UserRole) || 'hr_manager',
@@ -104,7 +103,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       avatarColor: editingUser?.avatarColor || (formData.role === 'admin' ? 'bg-slate-900' : 'bg-indigo-600')
     };
 
-    onSaveUser(userToSave);
+    onSaveUser(userToSave, formData.password || '');
     setIsModalOpen(false);
   };
 
@@ -462,14 +461,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Mật khẩu (Password) <span className="text-red-500">*</span>
+                    Mật khẩu (Password) {!editingUser && <span className="text-red-500">*</span>}
                   </label>
                   <input
-                    type="text"
-                    required
-                    value={formData.passwordHash}
-                    onChange={(e) => setFormData(prev => ({ ...prev, passwordHash: e.target.value }))}
-                    placeholder="Mật khẩu..."
+                    type="password"
+                    required={!editingUser}
+                    minLength={10}
+                    autoComplete="new-password"
+                    value={formData.password || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder={editingUser ? 'Để trống để giữ mật khẩu hiện tại' : 'Nhập mật khẩu mới'}
                     className="w-full px-3 py-2 border border-slate-300 font-mono rounded-lg focus:ring-2 focus:ring-slate-900 focus:outline-none"
                   />
                 </div>
