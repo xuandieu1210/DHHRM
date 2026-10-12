@@ -409,8 +409,32 @@ export default function App() {
     try {
       const imported = await importLaborBookFromExcel(file, employees);
       if (imported.length > 0) {
-        setEmployees(imported.map((item, idx) => ({ ...item, stt: idx + 1 })));
-        showToast(`Đã nhập thành công ${imported.length} lao động từ file Excel!`);
+        const mergedEmployees = new Map(
+          employees.map(employee => [employee.employeeId.trim().toLowerCase(), employee])
+        );
+        let updatedCount = 0;
+        let addedCount = 0;
+
+        imported.forEach(item => {
+          const employeeKey = item.employeeId.trim().toLowerCase();
+          const existing = mergedEmployees.get(employeeKey);
+          if (existing) {
+            mergedEmployees.set(employeeKey, {
+              ...existing,
+              ...item,
+              id: existing.id,
+              resignationDate: item.resignationDate?.trim() ? item.resignationDate : existing.resignationDate || '',
+              resignationReason: item.resignationReason?.trim() ? item.resignationReason : existing.resignationReason || ''
+            });
+            updatedCount += 1;
+          } else {
+            mergedEmployees.set(employeeKey, item);
+            addedCount += 1;
+          }
+        });
+
+        setEmployees(Array.from(mergedEmployees.values()).map((item, idx) => ({ ...item, stt: idx + 1 })));
+        showToast(`Đã nhập ${imported.length} hồ sơ: cập nhật ${updatedCount}, thêm ${addedCount}; giữ nguyên nhân viên không có trong file.`);
       } else {
         alert('Không tìm thấy dữ liệu hợp lệ trong file Excel.');
       }
