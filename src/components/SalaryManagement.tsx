@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { DollarSign, Plus, Search, Filter, Download, Upload, FileSpreadsheet, Edit3, Trash2, Printer, Eye, Calculator, ArrowUpRight, Building2, Check, X } from 'lucide-react';
+import { DollarSign, Plus, Search, Filter, ChevronDown, Download, Upload, FileSpreadsheet, Edit3, Trash2, Printer, Eye, Calculator, ArrowUpRight, Building2, Check, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { EmployeeSalary } from '../types/salary';
 import { Employee } from '../types/employee';
@@ -27,6 +27,8 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deptFilter, setDeptFilter] = useState<string>('all');
+  const [positionFilter, setPositionFilter] = useState<string[]>([]);
+  const [isPositionFilterOpen, setIsPositionFilterOpen] = useState(false);
   const [currencyFilter, setCurrencyFilter] = useState<'all' | 'USD' | 'VND'>('all');
 
   // Modals
@@ -67,10 +69,16 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
     return Array.from(set);
   }, [salaries]);
 
+  const positions = useMemo(() => {
+    const set = new Set(salaries.map(s => s.position.trim()).filter(Boolean));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [salaries]);
+
   // Filtered Salaries
   const filteredSalaries = useMemo(() => {
     return salaries.filter(s => {
       if (deptFilter !== 'all' && s.department !== deptFilter) return false;
+      if (positionFilter.length > 0 && !positionFilter.includes(s.position.trim())) return false;
       if (currencyFilter !== 'all' && s.currency !== currencyFilter) return false;
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
@@ -81,7 +89,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
       }
       return true;
     });
-  }, [salaries, deptFilter, currencyFilter, searchTerm]);
+  }, [salaries, deptFilter, positionFilter, currencyFilter, searchTerm]);
 
   // Aggregate Metrics
   const totalUsdPayroll = salaries.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.totalSalary, 0);
@@ -401,6 +409,61 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
+
+          {/* Position filter */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsPositionFilterOpen(open => !open)}
+              aria-expanded={isPositionFilterOpen}
+              className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none whitespace-nowrap"
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span>{positionFilter.length ? `${positionFilter.length} vị trí` : 'Tất cả vị trí'}</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {isPositionFilterOpen && (
+              <div className="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                <div className="flex items-center justify-between px-2 py-1.5">
+                  <span className="text-xs font-semibold text-slate-700">Chọn vị trí</span>
+                  <button
+                    type="button"
+                    onClick={() => setPositionFilter([])}
+                    disabled={positionFilter.length === 0}
+                    className="text-[11px] font-medium text-slate-500 hover:text-slate-900 disabled:opacity-40"
+                  >
+                    Bỏ chọn
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto" role="group" aria-label="Lọc theo vị trí công việc">
+                  {positions.map(position => (
+                    <label key={position} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={positionFilter.includes(position)}
+                        onChange={() => setPositionFilter(current => current.includes(position)
+                          ? current.filter(item => item !== position)
+                          : [...current, position]
+                        )}
+                        className="accent-slate-900"
+                      />
+                      <span>{position}</span>
+                    </label>
+                  ))}
+                  {positions.length === 0 && (
+                    <p className="px-2 py-3 text-xs text-slate-500">Chưa có dữ liệu vị trí.</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPositionFilterOpen(false)}
+                  className="mt-2 w-full rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                >
+                  Xong
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Currency filter */}
           <select

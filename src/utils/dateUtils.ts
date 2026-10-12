@@ -1,7 +1,10 @@
 import { Employee, ContractExpiryStatus } from '../types/employee';
 
-// Default evaluation reference date matching current context (2026-10-09)
-export const EVALUATION_DATE = new Date('2026-10-09T00:00:00');
+function getTodayAtMidnight(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
 
 export function parseDateString(dateStr?: string): Date | null {
   if (!dateStr || dateStr.trim() === '') return null;
@@ -18,7 +21,8 @@ export function parseDateString(dateStr?: string): Date | null {
 
   // If format is YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    const d = new Date(trimmed);
+    const [year, month, day] = trimmed.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
     return isNaN(d.getTime()) ? null : d;
   }
 
@@ -65,7 +69,7 @@ export function formatDateDisplay(dateStr?: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function calculateMonthsOfService(joiningDateStr?: string, resignationDateStr?: string, referenceDate: Date = EVALUATION_DATE): number {
+export function calculateMonthsOfService(joiningDateStr?: string, resignationDateStr?: string, referenceDate: Date = getTodayAtMidnight()): number {
   const joining = parseDateString(joiningDateStr);
   if (!joining) return 0;
 
@@ -90,7 +94,7 @@ export function getActiveContractEndDate(emp: Employee): string | null {
   return null;
 }
 
-export function getContractExpiryStatus(emp: Employee, refDate: Date = EVALUATION_DATE): {
+export function getContractExpiryStatus(emp: Employee, refDate: Date = getTodayAtMidnight()): {
   status: ContractExpiryStatus;
   daysRemaining: number | null;
   label: string;
@@ -133,8 +137,9 @@ export function getContractExpiryStatus(emp: Employee, refDate: Date = EVALUATIO
     };
   }
 
-  const diffMs = endDate.getTime() - refDate.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const endDay = Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  const referenceDay = Date.UTC(refDate.getFullYear(), refDate.getMonth(), refDate.getDate());
+  const diffDays = Math.round((endDay - referenceDay) / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) {
     return {
