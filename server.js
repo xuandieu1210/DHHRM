@@ -191,7 +191,7 @@ app.get('/api/data', requireSession, asyncRoute(async (request, response) => {
 app.put('/api/data/:collection', requireSession, asyncRoute(async (request, response) => {
   const { collection } = request.params;
   const allowedRoles = {
-    employees: ['admin', 'hr_manager'],
+    employees: ['admin', 'hr_manager', 'recruiter'],
     candidates: ['admin', 'hr_manager', 'recruiter'],
     salaries: ['admin', 'hr_manager'],
     users: ['admin'],
@@ -210,6 +210,20 @@ app.put('/api/data/:collection', requireSession, asyncRoute(async (request, resp
     await client.query('BEGIN');
     let records = request.body?.records;
     const changedPasswordUserIds = [];
+    if (collection === 'employees' && request.user.role === 'recruiter' && Array.isArray(records)) {
+      const { rows } = await client.query(
+        "SELECT record_id, payload FROM app_records WHERE collection = 'employees'"
+      );
+      const existingEmployees = new Map(rows.map(row => [row.record_id, row.payload]));
+      records = records.map(record => {
+        if (!record || typeof record !== 'object') return record;
+        const { houseSubsidy: _submittedHouseSubsidy, ...safeRecord } = record;
+        const existing = existingEmployees.get(record.id);
+        return existing && Object.prototype.hasOwnProperty.call(existing, 'houseSubsidy')
+          ? { ...safeRecord, houseSubsidy: existing.houseSubsidy }
+          : safeRecord;
+      });
+    }
     if (collection === 'users') {
       if (!Array.isArray(records)) throw new Error('Expected an array for users');
       const safeRecords = [];

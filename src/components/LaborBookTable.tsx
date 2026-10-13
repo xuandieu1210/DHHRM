@@ -30,6 +30,8 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('active');
   const [selectedNationality, setSelectedNationality] = useState<string>('all');
+  const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
+  const [isPositionFilterOpen, setIsPositionFilterOpen] = useState(false);
   const [columnPreset, setColumnPreset] = useState<ColumnCategory>('all');
   const [sortField, setSortField] = useState<keyof Employee>('stt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -43,6 +45,11 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
   const nationalities = useMemo(() => {
     const set = new Set(employees.map(e => e.nationality).filter(Boolean));
     return Array.from(set);
+  }, [employees]);
+
+  const positions = useMemo(() => {
+    const set = new Set(employees.map(e => e.position.trim()).filter(Boolean));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
   }, [employees]);
 
   // Filtering & Sorting
@@ -69,6 +76,10 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
 
         // Nationality
         if (selectedNationality !== 'all' && emp.nationality !== selectedNationality) {
+          return false;
+        }
+
+        if (selectedPositions.length > 0 && !selectedPositions.includes(emp.position.trim())) {
           return false;
         }
 
@@ -103,7 +114,7 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
       });
-  }, [employees, searchTerm, selectedDept, selectedNationality, selectedStatus, sortField, sortOrder]);
+  }, [employees, searchTerm, selectedDept, selectedNationality, selectedPositions, selectedStatus, sortField, sortOrder]);
 
   const handleSort = (field: keyof Employee) => {
     if (sortField === field) {
@@ -157,6 +168,61 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
+
+            {/* Vị trí làm việc */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsPositionFilterOpen(open => !open)}
+                aria-expanded={isPositionFilterOpen}
+                className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-900 whitespace-nowrap"
+              >
+                <Filter className="w-3.5 h-3.5" />
+                <span>{selectedPositions.length ? `${selectedPositions.length} vị trí` : 'Tất cả vị trí'}</span>
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+              {isPositionFilterOpen && (
+                <div className="absolute left-0 z-30 mt-1 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                  <div className="flex items-center justify-between px-2 py-1.5">
+                    <span className="text-xs font-semibold text-slate-700">Chọn vị trí làm việc</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPositions([])}
+                      disabled={selectedPositions.length === 0}
+                      className="text-[11px] font-medium text-slate-500 hover:text-slate-900 disabled:opacity-40"
+                    >
+                      Bỏ chọn
+                    </button>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto" role="group" aria-label="Lọc theo vị trí làm việc">
+                    {positions.map(position => (
+                      <label key={position} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedPositions.includes(position)}
+                          onChange={() => setSelectedPositions(current => current.includes(position)
+                            ? current.filter(item => item !== position)
+                            : [...current, position]
+                          )}
+                          className="accent-slate-900"
+                        />
+                        <span>{position}</span>
+                      </label>
+                    ))}
+                    {positions.length === 0 && (
+                      <p className="px-2 py-3 text-xs text-slate-500">Chưa có dữ liệu vị trí.</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPositionFilterOpen(false)}
+                    className="mt-2 w-full rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                  >
+                    Xong
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Quốc tịch */}
             <select

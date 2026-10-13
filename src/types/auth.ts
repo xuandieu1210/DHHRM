@@ -11,6 +11,7 @@ export interface UserPermission {
   canExportImportExcel: boolean;  // Nhập & xuất dữ liệu Excel
   canViewSalary: boolean;         // Xem thông tin lương & các khoản phụ cấp
   canManageSalary: boolean;       // Thêm, sửa, xóa cấu hình lương
+  canViewMonthlyReport: boolean; // Xem báo cáo biến động nhân sự tháng
 }
 
 export interface UserAccount {
@@ -48,6 +49,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, {
       canExportImportExcel: true,
       canViewSalary: true,
       canManageSalary: true,
+      canViewMonthlyReport: true,
     }
   },
   hr_manager: {
@@ -65,23 +67,25 @@ export const ROLE_DEFINITIONS: Record<UserRole, {
       canExportImportExcel: true,
       canViewSalary: true,
       canManageSalary: true,
+      canViewMonthlyReport: true,
     }
   },
   recruiter: {
     nameVi: 'Chuyên Viên Tuyển Dụng (Recruiter)',
-    description: 'Quản lý lịch hẹn phỏng vấn, báo cáo tuyển dụng tháng, xem hồ sơ lao động (Không có quyền xem lương & phụ cấp).',
+    description: 'Có toàn quyền nghiệp vụ trừ xem lương, quản lý lương và quản trị người dùng.',
     badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     defaultPermissions: {
       canManageUsers: false,
-      canCreateEmployee: false,
-      canEditEmployee: false,
-      canDeleteEmployee: false,
+      canCreateEmployee: true,
+      canEditEmployee: true,
+      canDeleteEmployee: true,
       canManageRecruitment: true,
-      canOnboardCandidate: false,
-      canRenewContract: false,
+      canOnboardCandidate: true,
+      canRenewContract: true,
       canExportImportExcel: true,
       canViewSalary: false,
       canManageSalary: false,
+      canViewMonthlyReport: true,
     }
   },
   viewer: {
@@ -99,6 +103,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, {
       canExportImportExcel: false,
       canViewSalary: false,
       canManageSalary: false,
+      canViewMonthlyReport: true,
     }
   }
 };

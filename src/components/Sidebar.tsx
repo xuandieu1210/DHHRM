@@ -40,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const roleMeta = ROLE_DEFINITIONS[currentUser.role];
   const canViewSalary = roleMeta.defaultPermissions.canViewSalary;
+  const canViewMonthlyReport = roleMeta.defaultPermissions.canViewMonthlyReport;
 
   const handleNavClick = (tab: AppTab) => {
     setActiveTab(tab);
@@ -81,12 +82,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: CalendarCheck,
           badge: todayInterviewCount > 0 ? { count: todayInterviewCount, color: 'bg-emerald-100 text-emerald-800' } : null
         },
-        {
+        ...(canViewMonthlyReport ? [{
           id: 'monthly' as AppTab,
           label: 'Biến Động Nhân Sự Tháng',
           icon: TrendingUp,
           badge: null
-        }
+        }] : [])
       ]
     },
     {

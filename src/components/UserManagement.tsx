@@ -326,21 +326,21 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 <td className="p-3 font-semibold text-slate-800">Thêm, Sửa hồ sơ lao động</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Toàn quyền</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Toàn quyền</td>
-                <td className="p-3 text-center text-slate-300">✕ Không</td>
+                <td className="p-3 text-center text-emerald-600 font-bold">✓ Toàn quyền</td>
                 <td className="p-3 text-center text-slate-300">✕ Không</td>
               </tr>
               <tr>
                 <td className="p-3 font-semibold text-slate-800">Xóa lao động khỏi Sổ LĐ</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
-                <td className="p-3 text-center text-slate-300">✕ Không</td>
+                <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
                 <td className="p-3 text-center text-slate-300">✕ Không</td>
               </tr>
               <tr>
                 <td className="p-3 font-semibold text-slate-800">Tái ký &amp; Gia hạn HĐLĐ hết hạn</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
-                <td className="p-3 text-center text-slate-300">✕ Không</td>
+                <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
                 <td className="p-3 text-center text-slate-300">✕ Không</td>
               </tr>
               <tr>
@@ -354,14 +354,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 <td className="p-3 font-semibold text-slate-800">Tiếp nhận ứng viên vào Sổ LĐ (1-Click)</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Duyệt</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Duyệt</td>
-                <td className="p-3 text-center text-slate-300">✕ Cần duyệt</td>
+                <td className="p-3 text-center text-emerald-600 font-bold">✓ Duyệt</td>
                 <td className="p-3 text-center text-slate-300">✕ Không</td>
               </tr>
               <tr>
                 <td className="p-3 font-semibold text-slate-800">Xem Báo Cáo Biến Động Nhân Sự Tháng</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
-                <td className="p-3 text-center text-slate-300">✕ Không</td>
+                <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
                 <td className="p-3 text-center text-emerald-600 font-bold">✓ Có</td>
               </tr>
               <tr>

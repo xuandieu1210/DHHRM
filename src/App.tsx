@@ -95,7 +95,7 @@ export default function App() {
 
   // Persist application collections in PostgreSQL.
   useEffect(() => {
-    if (!isDataReady || !currentUser || !['admin', 'hr_manager'].includes(currentUser.role)) return;
+    if (!isDataReady || !currentUser || !['admin', 'hr_manager', 'recruiter'].includes(currentUser.role)) return;
     void saveCollection('employees', employees).catch((error) => {
       console.error('Failed to save employees', error);
       setDataError('Không thể lưu dữ liệu nhân viên vào PostgreSQL.');
@@ -140,6 +140,7 @@ export default function App() {
   const canExportImport = permissions?.canExportImportExcel ?? false;
   const canManageUsers = permissions?.canManageUsers ?? false;
   const canViewSalary = permissions?.canViewSalary ?? false;
+  const canViewMonthlyReport = permissions?.canViewMonthlyReport ?? false;
   const canManageSalary = permissions?.canManageSalary ?? false;
 
   // Auto redirect if activeTab is not permitted for current role
@@ -150,7 +151,10 @@ export default function App() {
     if (activeTab === 'users' && !canManageUsers) {
       setActiveTab('table');
     }
-  }, [currentUser?.role, canViewSalary, canManageUsers, activeTab]);
+    if (activeTab === 'monthly' && !canViewMonthlyReport) {
+      setActiveTab('table');
+    }
+  }, [currentUser?.role, canViewSalary, canManageUsers, canViewMonthlyReport, activeTab]);
 
   // Metrics
   const activeCount = employees.filter(e => !e.resignationDate).length;
@@ -409,13 +413,16 @@ export default function App() {
     try {
       const imported = await importLaborBookFromExcel(file, employees);
       if (imported.length > 0) {
+        const importRecords = canViewSalary
+          ? imported
+          : imported.map(({ houseSubsidy: _houseSubsidy, ...employee }) => employee);
         const mergedEmployees = new Map(
           employees.map(employee => [employee.employeeId.trim().toLowerCase(), employee])
         );
         let updatedCount = 0;
         let addedCount = 0;
 
-        imported.forEach(item => {
+        importRecords.forEach(item => {
           const employeeKey = item.employeeId.trim().toLowerCase();
           const existing = mergedEmployees.get(employeeKey);
           if (existing) {
@@ -682,7 +689,7 @@ export default function App() {
           )}
 
           {/* Tab 3: Thống kê nhân sự theo tháng & nhân sự nghỉ theo tháng */}
-          {activeTab === 'monthly' && (
+          {activeTab === 'monthly' && canViewMonthlyReport && (
             <MonthlyTurnoverReport
               employees={employees}
             />
