@@ -716,8 +716,6 @@ export default function App() {
           {activeTab === 'analytics' && (
             <DashboardAnalytics
               employees={employees}
-              onFilterDepartment={() => setActiveTab('table')}
-              onFilterStatus={() => setActiveTab('table')}
             />
           )}
 

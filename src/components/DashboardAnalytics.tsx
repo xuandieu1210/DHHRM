@@ -1,28 +1,38 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Users, UserCheck, UserX, AlertTriangle, Building, Award, Globe, Briefcase } from 'lucide-react';
 import { Employee } from '../types/employee';
 import { getContractExpiryStatus } from '../utils/dateUtils';
 
 interface DashboardAnalyticsProps {
   employees: Employee[];
-  onFilterDepartment: (dept: string) => void;
-  onFilterStatus: (status: string) => void;
 }
 
 export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({
-  employees,
-  onFilterDepartment,
-  onFilterStatus
+  employees
 }) => {
+  const [statusFilter, setStatusFilter] = useState<'active' | 'all' | 'resigned'>('active');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+
+  const departments = useMemo(() => Array.from(new Set(
+    employees.map(employee => employee.department.trim()).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, 'vi')), [employees]);
+
+  const filteredEmployees = useMemo(() => employees.filter(employee => {
+    const isResigned = Boolean(employee.resignationDate?.trim());
+    if (statusFilter === 'active' && isResigned) return false;
+    if (statusFilter === 'resigned' && !isResigned) return false;
+    if (departmentFilter !== 'all' && employee.department.trim() !== departmentFilter) return false;
+    return true;
+  }), [employees, statusFilter, departmentFilter]);
+
   // Aggregate Metrics
-  const totalEmployees = employees.length;
-  const activeEmployees = employees.filter(e => !e.resignationDate);
-  const resignedEmployees = employees.filter(e => !!e.resignationDate);
+  const totalEmployees = filteredEmployees.length;
+  const activeEmployees = filteredEmployees.filter(e => !e.resignationDate?.trim());
 
   let expiredContractsCount = 0;
   let warningContractsCount = 0;
 
-  employees.forEach(emp => {
+  filteredEmployees.forEach(emp => {
     const status = getContractExpiryStatus(emp);
     if (status.status === 'expired') expiredContractsCount++;
     if (status.status === 'warning') warningContractsCount++;
@@ -30,40 +40,68 @@ export const DashboardAnalytics: React.FC<DashboardAnalyticsProps> = ({
 
   // Department distribution
   const deptCounts: Record<string, number> = {};
-  employees.forEach(e => {
+  filteredEmployees.forEach(e => {
     deptCounts[e.department] = (deptCounts[e.department] || 0) + 1;
   });
 
   // Nationality distribution
   const natCounts: Record<string, number> = {};
-  employees.forEach(e => {
+  filteredEmployees.forEach(e => {
     natCounts[e.nationality] = (natCounts[e.nationality] || 0) + 1;
   });
 
   // Gender distribution
-  const maleCount = employees.filter(e => e.gender === 'Male').length;
-  const femaleCount = employees.filter(e => e.gender === 'Female').length;
+  const maleCount = filteredEmployees.filter(e => e.gender === 'Male').length;
+  const femaleCount = filteredEmployees.filter(e => e.gender === 'Female').length;
 
   // Education degree distribution
   const degreeCounts: Record<string, number> = {};
-  employees.forEach(e => {
+  filteredEmployees.forEach(e => {
     const deg = e.educationDegree || 'Khác';
     degreeCounts[deg] = (degreeCounts[deg] || 0) + 1;
   });
 
   // Contract Type distribution
   const contractCounts: Record<string, number> = {};
-  employees.forEach(e => {
+  filteredEmployees.forEach(e => {
     const cType = e.contractType || 'Khác';
     contractCounts[cType] = (contractCounts[cType] || 0) + 1;
   });
 
   // Average time of service
-  const totalMonths = employees.reduce((acc, curr) => acc + (Number(curr.timeOfService) || 0), 0);
+  const totalMonths = filteredEmployees.reduce((acc, curr) => acc + (Number(curr.timeOfService) || 0), 0);
   const avgMonths = totalEmployees > 0 ? (totalMonths / totalEmployees).toFixed(1) : 0;
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-end gap-3 rounded-lg border border-slate-200 bg-white p-3">
+        <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+          Trạng thái
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            className="rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900"
+          >
+            <option value="active">Đang làm việc</option>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="resigned">Đã nghỉ việc</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+          Bộ phận
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900"
+          >
+            <option value="all">Tất cả bộ phận</option>
+            {departments.map(department => (
+              <option key={department} value={department}>{department}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {/* KPI Stat Cards (Single-Elevation, anti-slop, clean typography with tabular numerals) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Card 1: Total */}
