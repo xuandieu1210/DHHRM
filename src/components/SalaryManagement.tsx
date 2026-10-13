@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { DollarSign, Plus, Search, Filter, ChevronDown, Download, Upload, FileSpreadsheet, Edit3, Trash2, Printer, Eye, Calculator, ArrowUpRight, Building2, Check, X } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { DollarSign, Plus, Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Download, Upload, FileSpreadsheet, Edit3, Trash2, Printer, Eye, Calculator, ArrowUpRight, Building2, Check, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { EmployeeSalary } from '../types/salary';
 import { Employee } from '../types/employee';
@@ -30,6 +30,9 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
   const [positionFilter, setPositionFilter] = useState<string[]>([]);
   const [isPositionFilterOpen, setIsPositionFilterOpen] = useState(false);
   const [currencyFilter, setCurrencyFilter] = useState<'all' | 'USD' | 'VND'>('all');
+  const [employmentStatusFilter, setEmploymentStatusFilter] = useState<'active' | 'all' | 'resigned'>('active');
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -74,9 +77,23 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
   }, [salaries]);
 
+  const resignationStatusByEmployeeId = useMemo(() => new Map(
+    employees.map(employee => [
+      employee.employeeId.trim().toLowerCase(),
+      Boolean(employee.resignationDate?.trim())
+    ])
+  ), [employees]);
+
+  const statusFilteredSalaries = useMemo(() => salaries.filter(s => {
+      const isResigned = resignationStatusByEmployeeId.get(s.employeeId.trim().toLowerCase());
+      if (employmentStatusFilter === 'active' && isResigned !== false) return false;
+      if (employmentStatusFilter === 'resigned' && isResigned !== true) return false;
+      return true;
+    }), [salaries, resignationStatusByEmployeeId, employmentStatusFilter]);
+
   // Filtered Salaries
   const filteredSalaries = useMemo(() => {
-    return salaries.filter(s => {
+    return statusFilteredSalaries.filter(s => {
       if (deptFilter !== 'all' && s.department !== deptFilter) return false;
       if (positionFilter.length > 0 && !positionFilter.includes(s.position.trim())) return false;
       if (currencyFilter !== 'all' && s.currency !== currencyFilter) return false;
@@ -89,14 +106,25 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
       }
       return true;
     });
-  }, [salaries, deptFilter, positionFilter, currencyFilter, searchTerm]);
+  }, [statusFilteredSalaries, deptFilter, positionFilter, currencyFilter, searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredSalaries, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSalaries.length / pageSize));
+  const visiblePage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (visiblePage - 1) * pageSize;
+  const pageSalaries = filteredSalaries.slice(pageStartIndex, pageStartIndex + pageSize);
+  const pageEndIndex = Math.min(pageStartIndex + pageSize, filteredSalaries.length);
 
   // Aggregate Metrics
-  const totalUsdPayroll = salaries.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.totalSalary, 0);
-  const totalVndPayroll = salaries.filter(s => s.currency === 'VND').reduce((sum, s) => sum + s.totalSalary, 0);
-  const totalUsdAllowances = salaries.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.totalAllowance, 0);
-  const totalVndAllowances = salaries.filter(s => s.currency === 'VND').reduce((sum, s) => sum + s.totalAllowance, 0);
-  const highestExpertSalary = salaries
+  const totalUsdPayroll = statusFilteredSalaries.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.totalSalary, 0);
+  const totalVndPayroll = statusFilteredSalaries.filter(s => s.currency === 'VND').reduce((sum, s) => sum + s.totalSalary, 0);
+  const totalUsdAllowances = statusFilteredSalaries.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.totalAllowance, 0);
+  const totalVndAllowances = statusFilteredSalaries.filter(s => s.currency === 'VND').reduce((sum, s) => sum + s.totalAllowance, 0);
+  const payrollEmployeeCount = new Set(statusFilteredSalaries.map(s => s.employeeId.trim().toLowerCase())).size;
+  const highestExpertSalary = statusFilteredSalaries
     .filter(salary => salary.currency === 'USD')
     .reduce<EmployeeSalary | null>(
       (highest, salary) => !highest || salary.totalSalary > highest.totalSalary ? salary : highest,
@@ -356,7 +384,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
             <Building2 className="w-4 h-4 text-slate-600" />
           </div>
           <div className="mt-2 text-xl sm:text-2xl font-bold font-mono text-slate-900 tabular-nums">
-            {salaries.length} <span className="text-xs font-normal text-slate-500">người</span>
+            {payrollEmployeeCount} <span className="text-xs font-normal text-slate-500">người</span>
           </div>
           <div className="mt-1 text-[11px] text-slate-500">
             Đã thiết lập định mức lương &amp; phụ cấp
@@ -408,6 +436,16 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
             {departments.map(d => (
               <option key={d} value={d}>{d}</option>
             ))}
+          </select>
+
+          <select
+            value={employmentStatusFilter}
+            onChange={(e) => setEmploymentStatusFilter(e.target.value as typeof employmentStatusFilter)}
+            className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none"
+          >
+            <option value="active">Đang làm việc</option>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="resigned">Đã nghỉ việc</option>
           </select>
 
           {/* Position filter */}
@@ -658,11 +696,11 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredSalaries.map((sal, idx) => (
+                pageSalaries.map((sal, idx) => (
                   <tr key={sal.id} className="hover:bg-slate-50/90 transition-colors">
                     {/* STT */}
                     <td className="p-2 text-center font-mono text-slate-500 border border-slate-300 font-medium">
-                      {idx + 1}
+                      {pageStartIndex + idx + 1}
                     </td>
 
                     {/* Mã NV */}
@@ -804,6 +842,46 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
               )}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Hiển thị {filteredSalaries.length === 0 ? 0 : pageStartIndex + 1}-{pageEndIndex} / {filteredSalaries.length} biểu lương
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2">
+              Số dòng/trang
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded border border-slate-300 bg-white px-2 py-1 text-slate-700"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={500}>500</option>
+                <option value={1000}>1.000</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+              disabled={visiblePage <= 1}
+              aria-label="Trang trước"
+              className="rounded border border-slate-300 p-1.5 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="min-w-20 text-center">Trang {visiblePage} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+              disabled={visiblePage >= totalPages}
+              aria-label="Trang sau"
+              className="rounded border border-slate-300 p-1.5 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 

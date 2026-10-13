@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, Eye, Edit2, Trash2, ArrowUpDown, ChevronDown, CheckSquare, Square } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Filter, Eye, Edit2, Trash2, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, CheckSquare, Square } from 'lucide-react';
 import { Employee } from '../types/employee';
-import { formatDateDisplay, getContractExpiryStatus } from '../utils/dateUtils';
+import { formatDateDisplay, getContractExpiryStatus, parseDateString } from '../utils/dateUtils';
 
 interface LaborBookTableProps {
   employees: Employee[];
@@ -30,11 +30,14 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('active');
   const [selectedNationality, setSelectedNationality] = useState<string>('all');
+  const [selectedResignationMonth, setSelectedResignationMonth] = useState('');
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
   const [isPositionFilterOpen, setIsPositionFilterOpen] = useState(false);
   const [columnPreset, setColumnPreset] = useState<ColumnCategory>('all');
   const [sortField, setSortField] = useState<keyof Employee>('stt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Extract unique departments & nationalities
   const departments = useMemo(() => {
@@ -85,16 +88,21 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
 
         // Status
         if (selectedStatus !== 'all') {
-          const expStatus = getContractExpiryStatus(emp);
           if (selectedStatus === 'active') {
             if (emp.resignationDate) return false;
           } else if (selectedStatus === 'resigned') {
             if (!emp.resignationDate) return false;
-          } else if (selectedStatus === 'expired') {
-            if (expStatus.status !== 'expired') return false;
-          } else if (selectedStatus === 'warning') {
-            if (expStatus.status !== 'warning') return false;
+          } else if (selectedStatus === 'expired' || selectedStatus === 'warning') {
+            const expStatus = getContractExpiryStatus(emp);
+            if (expStatus.status !== selectedStatus) return false;
           }
+        }
+
+        if (selectedStatus === 'resigned' && selectedResignationMonth) {
+          const resignationDate = parseDateString(emp.resignationDate);
+          if (!resignationDate) return false;
+          const employeeMonth = `${resignationDate.getFullYear()}-${String(resignationDate.getMonth() + 1).padStart(2, '0')}`;
+          if (employeeMonth !== selectedResignationMonth) return false;
         }
 
         return true;
@@ -114,7 +122,17 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
       });
-  }, [employees, searchTerm, selectedDept, selectedNationality, selectedPositions, selectedStatus, sortField, sortOrder]);
+  }, [employees, searchTerm, selectedDept, selectedNationality, selectedPositions, selectedResignationMonth, selectedStatus, sortField, sortOrder]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredEmployees, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
+  const visiblePage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (visiblePage - 1) * pageSize;
+  const pageEmployees = filteredEmployees.slice(pageStartIndex, pageStartIndex + pageSize);
+  const pageEndIndex = Math.min(pageStartIndex + pageSize, filteredEmployees.length);
 
   const handleSort = (field: keyof Employee) => {
     if (sortField === field) {
@@ -239,7 +257,17 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
             {/* Trạng thái hợp đồng / việc làm */}
             <select
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
+              onChange={(e) => {
+                const status = e.target.value;
+                setSelectedStatus(status);
+                if (status !== 'resigned') {
+                  setSelectedResignationMonth('');
+                }
+                if (sortField === 'resignationDate') {
+                  setSortField('stt');
+                  setSortOrder('asc');
+                }
+              }}
               className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-900"
             >
               <option value="all">Tất cả trạng thái</option>
@@ -248,6 +276,18 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
               <option value="expired">Đã quá hạn HĐ</option>
               <option value="resigned">Đã nghỉ việc</option>
             </select>
+
+            {selectedStatus === 'resigned' && (
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                Tháng nghỉ việc
+                <input
+                  type="month"
+                  value={selectedResignationMonth}
+                  onChange={(e) => setSelectedResignationMonth(e.target.value)}
+                  className="px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </label>
+            )}
           </div>
         </div>
 
@@ -612,7 +652,7 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredEmployees.map((emp, index) => {
+                pageEmployees.map((emp, index) => {
                   const expStatus = getContractExpiryStatus(emp);
                   const isResigned = Boolean(emp.resignationDate);
 
@@ -625,7 +665,7 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
                     >
                       {/* 1. STT */}
                       <td className={`p-2 text-center font-mono tabular-nums sticky left-0 z-10 bg-white font-medium ${cellBorderClass}`}>
-                        {index + 1}
+                        {pageStartIndex + index + 1}
                       </td>
 
                       {/* 2. Họ và tên */}
@@ -858,6 +898,47 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Hiển thị {filteredEmployees.length === 0 ? 0 : pageStartIndex + 1}-{pageEndIndex} / {filteredEmployees.length} nhân viên
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2">
+              Số dòng/trang
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded border border-slate-300 bg-white px-2 py-1 text-slate-700"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={500}>500</option>
+                <option value={1000}>1.000</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+              disabled={visiblePage <= 1}
+              aria-label="Trang trước"
+              className="rounded border border-slate-300 p-1.5 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="min-w-20 text-center">Trang {visiblePage} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+              disabled={visiblePage >= totalPages}
+              aria-label="Trang sau"
+              className="rounded border border-slate-300 p-1.5 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Legend bar matching the Excel highlights */}

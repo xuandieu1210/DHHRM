@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { InterviewCandidate, InterviewStatus } from '../types/recruitment';
-import { formatDateDisplay } from '../utils/dateUtils';
+import { formatDateDisplay, getLocalDateString, parseDateString } from '../utils/dateUtils';
 import { downloadInterviewImportTemplate } from '../utils/excel';
 import { 
   getMonthlyRecruitmentStats, 
@@ -62,15 +62,18 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'schedule' | 'monthly_stats'>('schedule');
 
   // Daily Schedule Filter States
-  const [selectedDate, setSelectedDate] = useState<string>('2026-10-09');
+  const todayDate = getLocalDateString();
+  const tomorrowDate = getLocalDateString(1);
+  const yesterdayDate = getLocalDateString(-1);
+  const [selectedDate, setSelectedDate] = useState<string>(() => getLocalDateString());
   const [dateFilterMode, setDateFilterMode] = useState<'specific' | 'all' | 'month'>('specific');
-  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>('2026-10');
+  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>(() => getLocalDateString().slice(0, 7));
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Monthly Report Tab States
-  const [reportYear, setReportYear] = useState<number>(2026);
+  const [reportYear, setReportYear] = useState<number>(new Date().getFullYear());
   const [reportSelectedMonth, setReportSelectedMonth] = useState<number | 'all'>('all');
 
   // Modal States
@@ -81,7 +84,7 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
 
   // Form State
   const [formData, setFormData] = useState<Partial<InterviewCandidate>>({
-    interviewDate: '2026-10-09',
+    interviewDate: getLocalDateString(),
     interviewTime: '09:00',
     fullName: '',
     phoneNumber: '',
@@ -104,17 +107,6 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
     return Array.from(set);
   }, [candidates]);
 
-  // Extract unique available months from candidates
-  const availableMonths = useMemo(() => {
-    const set = new Set<string>();
-    candidates.forEach(c => {
-      if (c.interviewDate && c.interviewDate.length >= 7) {
-        set.add(c.interviewDate.substring(0, 7));
-      }
-    });
-    return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [candidates]);
-
   // Filtered Candidates for Daily Schedule Tab
   const filteredCandidates = useMemo(() => {
     return candidates.filter(c => {
@@ -122,7 +114,10 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
       if (dateFilterMode === 'specific' && selectedDate) {
         if (c.interviewDate !== selectedDate) return false;
       } else if (dateFilterMode === 'month' && selectedMonthFilter) {
-        if (!c.interviewDate || !c.interviewDate.startsWith(selectedMonthFilter)) return false;
+        const interviewDate = parseDateString(c.interviewDate);
+        if (!interviewDate) return false;
+        const interviewMonth = `${interviewDate.getFullYear()}-${String(interviewDate.getMonth() + 1).padStart(2, '0')}`;
+        if (interviewMonth !== selectedMonthFilter) return false;
       }
 
       // Status filter
@@ -168,8 +163,8 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
 
   // Count candidates for today
   const todayCandidatesCount = useMemo(() => {
-    return candidates.filter(c => c.interviewDate === '2026-10-09').length;
-  }, [candidates]);
+    return candidates.filter(c => c.interviewDate === todayDate).length;
+  }, [candidates, todayDate]);
 
   // Monthly Recruitment Statistics for reportYear (12 months)
   const monthlyRecruitmentStats = useMemo(() => {
@@ -240,7 +235,7 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
   const handleOpenAdd = () => {
     setEditingCandidate(null);
     setFormData({
-      interviewDate: selectedDate || '2026-10-09',
+      interviewDate: selectedDate || getLocalDateString(),
       interviewTime: '09:00',
       fullName: '',
       phoneNumber: '',
@@ -271,7 +266,7 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
 
     const candidateToSave: InterviewCandidate = {
       id: editingCandidate?.id || `int-${Date.now()}`,
-      interviewDate: formData.interviewDate || '2026-10-09',
+      interviewDate: formData.interviewDate || getLocalDateString(),
       interviewTime: formData.interviewTime || '09:00',
       fullName: formData.fullName || '',
       phoneNumber: formData.phoneNumber || '',
@@ -373,7 +368,7 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
           const name = String(r[3]).trim();
           if (!name) return;
 
-          let interviewDate = String(r[1] || selectedDate || '2026-10-09');
+          let interviewDate = String(r[1] || selectedDate || getLocalDateString());
           if (typeof r[1] === 'number') {
             const date = XLSX.SSF.parse_date_code(r[1]);
             if (date) interviewDate = `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
@@ -568,36 +563,36 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
                 </span>
 
                 <button
-                  onClick={() => { setSelectedDate('2026-10-09'); setDateFilterMode('specific'); }}
+                  onClick={() => { setSelectedDate(todayDate); setDateFilterMode('specific'); }}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
-                    dateFilterMode === 'specific' && selectedDate === '2026-10-09'
+                    dateFilterMode === 'specific' && selectedDate === todayDate
                       ? 'bg-slate-900 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  Hôm nay (09/10/2026)
+                  Hôm nay ({formatDateDisplay(todayDate)})
                 </button>
 
                 <button
-                  onClick={() => { setSelectedDate('2026-10-10'); setDateFilterMode('specific'); }}
+                  onClick={() => { setSelectedDate(tomorrowDate); setDateFilterMode('specific'); }}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
-                    dateFilterMode === 'specific' && selectedDate === '2026-10-10'
+                    dateFilterMode === 'specific' && selectedDate === tomorrowDate
                       ? 'bg-slate-900 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  Ngày mai (10/10/2026)
+                  Ngày mai ({formatDateDisplay(tomorrowDate)})
                 </button>
 
                 <button
-                  onClick={() => { setSelectedDate('2026-10-08'); setDateFilterMode('specific'); }}
+                  onClick={() => { setSelectedDate(yesterdayDate); setDateFilterMode('specific'); }}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
-                    dateFilterMode === 'specific' && selectedDate === '2026-10-08'
+                    dateFilterMode === 'specific' && selectedDate === yesterdayDate
                       ? 'bg-slate-900 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  Hôm qua (08/10/2026)
+                  Hôm qua ({formatDateDisplay(yesterdayDate)})
                 </button>
 
                 <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
@@ -610,24 +605,18 @@ export const RecruitmentManagement: React.FC<RecruitmentManagementProps> = ({
                   />
                 </div>
 
-                {/* Filter by Month Dropdown */}
+                {/* Filter by Month */}
                 <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
                   <span className="text-[11px] text-slate-500">Xem cả tháng:</span>
-                  <select
+                  <input
+                    type="month"
                     value={selectedMonthFilter}
                     onChange={(e) => {
                       setSelectedMonthFilter(e.target.value);
-                      setDateFilterMode('month');
+                      setDateFilterMode(e.target.value ? 'month' : 'all');
                     }}
                     className="bg-transparent text-xs font-semibold text-slate-900 focus:outline-none cursor-pointer"
-                  >
-                    {availableMonths.map(m => {
-                      const [y, mon] = m.split('-');
-                      return (
-                        <option key={m} value={m}>Tháng {mon}/{y}</option>
-                      );
-                    })}
-                  </select>
+                  />
                 </div>
 
                 <button

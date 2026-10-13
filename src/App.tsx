@@ -18,7 +18,7 @@ import { DashboardAnalytics } from './components/DashboardAnalytics';
 import { ContractAlertsView } from './components/ContractAlertsModal';
 import { PrintLaborBook } from './components/PrintLaborBook';
 import { downloadLaborBookImportTemplate, exportLaborBookToExcel, importLaborBookFromExcel } from './utils/excel';
-import { getContractExpiryStatus } from './utils/dateUtils';
+import { getContractExpiryStatus, getLocalDateString } from './utils/dateUtils';
 import { createEmployeeId } from './utils/employeeIds';
 import { getSession, loadAppData, login, logout, resetAppData, saveCollection, saveUsers } from './utils/dataApi';
 
@@ -167,7 +167,7 @@ export default function App() {
     if (s.status === 'warning') warningCount++;
   });
 
-  const todayInterviews = candidates.filter(c => c.interviewDate === '2026-10-09').length;
+  const todayInterviews = candidates.filter(c => c.interviewDate === getLocalDateString()).length;
 
   // Auth Handlers
   const handleLogin = async (username: string, password: string) => {
