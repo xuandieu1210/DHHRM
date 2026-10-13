@@ -129,9 +129,6 @@ export const CompanyBanner: React.FC<CompanyBannerProps> = ({
         <h1 className="text-base sm:text-lg md:text-xl font-bold tracking-wide text-slate-900 uppercase">
           SỔ QUẢN LÝ LAO ĐỘNG/ LABOR MANAGEMENT BOOK
         </h1>
-        <p className="text-xs text-slate-700 font-medium mt-0.5">
-          Quy chuẩn theo Bộ Luật Lao Động 2019 &amp; Nghị định số 145/2020/NĐ-CP của Chính phủ
-        </p>
       </div>
 
       {/* Metric strip below title */}
@@ -143,9 +140,6 @@ export const CompanyBanner: React.FC<CompanyBannerProps> = ({
             <span>Đang làm việc: <strong className="font-semibold text-emerald-700 font-mono tabular-nums">{activeCount}</strong></span>
             <span aria-hidden="true" className="text-slate-300">|</span>
             <span>Đã quá hạn HĐ: <strong className="font-semibold text-red-600 font-mono tabular-nums">{expiredCount}</strong></span>
-          </div>
-          <div className="text-slate-500 shrink-0 font-mono text-[11px]">
-            Ngày tham chiếu chuẩn: 10/09/2026
           </div>
         </div>
       </div>

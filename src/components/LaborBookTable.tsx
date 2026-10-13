@@ -32,6 +32,7 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('active');
   const [selectedNationality, setSelectedNationality] = useState<string>('all');
+  const [selectedJoiningMonth, setSelectedJoiningMonth] = useState('');
   const [selectedResignationMonth, setSelectedResignationMonth] = useState('');
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
   const [isPositionFilterOpen, setIsPositionFilterOpen] = useState(false);
@@ -107,6 +108,13 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
           if (employeeMonth !== selectedResignationMonth) return false;
         }
 
+        if (selectedStatus === 'active' && selectedJoiningMonth) {
+          const joiningDate = parseDateString(emp.joiningDate);
+          if (!joiningDate) return false;
+          const employeeMonth = `${joiningDate.getFullYear()}-${String(joiningDate.getMonth() + 1).padStart(2, '0')}`;
+          if (employeeMonth !== selectedJoiningMonth) return false;
+        }
+
         return true;
       })
       .sort((a, b) => {
@@ -124,7 +132,7 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
       });
-  }, [employees, searchTerm, selectedDept, selectedNationality, selectedPositions, selectedResignationMonth, selectedStatus, sortField, sortOrder]);
+  }, [employees, searchTerm, selectedDept, selectedJoiningMonth, selectedNationality, selectedPositions, selectedResignationMonth, selectedStatus, sortField, sortOrder]);
 
   useEffect(() => {
     onFilteredEmployeesChange(filteredEmployees);
@@ -266,6 +274,9 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
               onChange={(e) => {
                 const status = e.target.value;
                 setSelectedStatus(status);
+                if (status !== 'active') {
+                  setSelectedJoiningMonth('');
+                }
                 if (status !== 'resigned') {
                   setSelectedResignationMonth('');
                 }
@@ -282,6 +293,18 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
               <option value="expired">Đã quá hạn HĐ</option>
               <option value="resigned">Đã nghỉ việc</option>
             </select>
+
+            {selectedStatus === 'active' && (
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                Tháng vào làm
+                <input
+                  type="month"
+                  value={selectedJoiningMonth}
+                  onChange={(e) => setSelectedJoiningMonth(e.target.value)}
+                  className="px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </label>
+            )}
 
             {selectedStatus === 'resigned' && (
               <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
