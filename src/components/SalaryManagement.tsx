@@ -300,7 +300,7 @@ export const SalaryManagement: React.FC<SalaryManagementProps> = ({
       ]
     ];
 
-    const dataRows = salaries.map((s, idx) => [
+    const dataRows = filteredSalaries.map((s, idx) => [
       idx + 1,
       s.employeeId,
       s.fullName,

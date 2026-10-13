@@ -9,6 +9,7 @@ interface LaborBookTableProps {
   onViewEmployee: (emp: Employee) => void;
   onEditEmployee: (emp: Employee) => void;
   onDeleteEmployee: (emp: Employee) => void;
+  onFilteredEmployeesChange: (employees: Employee[]) => void;
   canEditEmployee?: boolean;
   canDeleteEmployee?: boolean;
   canViewSalary?: boolean;
@@ -22,6 +23,7 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
   onViewEmployee,
   onEditEmployee,
   onDeleteEmployee,
+  onFilteredEmployeesChange,
   canEditEmployee = true,
   canDeleteEmployee = true,
   canViewSalary = true
@@ -123,6 +125,10 @@ export const LaborBookTable: React.FC<LaborBookTableProps> = ({
         return 0;
       });
   }, [employees, searchTerm, selectedDept, selectedNationality, selectedPositions, selectedResignationMonth, selectedStatus, sortField, sortOrder]);
+
+  useEffect(() => {
+    onFilteredEmployeesChange(filteredEmployees);
+  }, [filteredEmployees, onFilteredEmployeesChange]);
 
   useEffect(() => {
     setCurrentPage(1);

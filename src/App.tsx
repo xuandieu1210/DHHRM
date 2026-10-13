@@ -27,6 +27,7 @@ export default function App() {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [filteredEmployeesForExport, setFilteredEmployeesForExport] = useState<Employee[]>([]);
   const [candidates, setCandidates] = useState<InterviewCandidate[]>([]);
   const [salaries, setSalaries] = useState<EmployeeSalary[]>([]);
   const [isAuthReady, setIsAuthReady] = useState(false);
@@ -394,7 +395,7 @@ export default function App() {
       showToast('Bạn không có quyền xuất dữ liệu Excel.');
       return;
     }
-    exportLaborBookToExcel(employees);
+    exportLaborBookToExcel(filteredEmployeesForExport);
     showToast('Đã xuất file Excel Sổ Quản Lý Lao Động thành công!');
   };
 
@@ -651,6 +652,7 @@ export default function App() {
               onViewEmployee={(emp) => setViewingEmployee(emp)}
               onEditEmployee={handleEdit}
               onDeleteEmployee={handleDelete}
+              onFilteredEmployeesChange={setFilteredEmployeesForExport}
               canEditEmployee={canEditEmployee}
               canDeleteEmployee={canDeleteEmployee}
               canViewSalary={canViewSalary}
